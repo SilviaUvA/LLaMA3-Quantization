@@ -44,7 +44,8 @@ class IRQLoRALMClass(BaseLM):
             ),
             torch_dtype=torch.bfloat16
         )
-        self.model = PeftModel.from_pretrained(self.model, os.path.join(args.peft, 'adapter_model'), is_trainable=True)
+        # self.model = PeftModel.from_pretrained(self.model, os.path.join(args.peft, 'adapter_model'), is_trainable=True) #TODO file does not exist so throws error
+        self.model = PeftModel.from_pretrained(self.model, os.path.join(args.peft), is_trainable=True)
         model_fp = AutoModelForCausalLM.from_pretrained(args.model)
 
         self.seqlen = self.model.config.max_position_embeddings
