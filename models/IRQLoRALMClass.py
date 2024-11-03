@@ -45,8 +45,8 @@ class IRQLoRALMClass(BaseLM):
             torch_dtype=torch.bfloat16
         )
         # self.model = PeftModel.from_pretrained(self.model, os.path.join(args.peft, 'adapter_model'), is_trainable=True) #TODO file does not exist so throws error
-        self.model = PeftModel.from_pretrained(self.model, os.path.join(args.peft), is_trainable=True)
-        model_fp = AutoModelForCausalLM.from_pretrained(args.model)
+        self.model = PeftModel.from_pretrained(self.model, os.path.join(args.peft), is_trainable=True, use_safetensors=True)
+        model_fp = AutoModelForCausalLM.from_pretrained(args.model, use_safetensors=True)
 
         self.seqlen = self.model.config.max_position_embeddings
         self.model.eval()
@@ -55,9 +55,24 @@ class IRQLoRALMClass(BaseLM):
 
         
         self.model = replace_to_qlora_model(self.model, model_fp, blocksize2=args.blocksize2, tau_range=args.tau_range, tau_n=args.tau_n)
-        checkpoint = load_file(os.path.join(args.peft, 'adapter_model/adapter_model.safetensors'), device='cuda')
+
+        # need safetensors file locally
+        import requests
+        url = "https://huggingface.co/" + os.path.join(args.peft) + "/resolve/main/adapter_model.safetensors" #TODO this final part of the url might have to be adjusted for different models
+        response = requests.get(url)
+        if response.status_code == 200:
+            with open("adapter_model.safetensors", "wb") as f:
+                f.write(response.content)
+            print(f"Downloaded successfully from {url}")
+        else:
+            print("Error downloading:", response.status_code, url)
+
+        checkpoint = load_file("adapter_model.safetensors", device='cuda')
         checkpoint = {key: value for key, value in checkpoint.items() if "lora_default_A_scale" in key or "lora_default_B_scale" in key}
         self.model.load_state_dict(checkpoint, strict=False)
+
+        # remove safetensors file afterwards
+        os.remove("adapter_model.safetensors")
 
     @property
     def eot_token(self) -> str:

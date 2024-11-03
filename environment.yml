@@ -96,7 +96,7 @@ dependencies:
     - threadpoolctl==3.5.0
     - tokenizers==0.20.1
     - tomli==2.0.2
-    - torch==2.0
+    - torch==2.1.0
     - tqdm==4.66.6
     - transformers==4.46.1
     - triton #==3.1.0
