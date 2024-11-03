@@ -1,10 +1,10 @@
 import os
+import torch
 import sys
 import random
 import numpy as np
 from models.LMClass import LMClass
 from models.IRQLoRALMClass import IRQLoRALMClass
-import torch
 import time
 from datautils import get_loaders
 from lm_eval import evaluator
@@ -23,8 +23,12 @@ from quant.int_linear import QuantLinear
 
 import pdb
 
+from huggingface_hub import login
+access_token = "hf_xyz" #TODO do not push your token
+login(token=access_token)
 
 torch.backends.cudnn.benchmark = True
+print("Using device: ", torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 net_choices = [
     "opt-125m",
@@ -273,6 +277,7 @@ def main():
         lm = IRQLoRALMClass(args)
     else:
         lm = LMClass(args)
+
     lm.seqlen = 2048
     lm.model.eval()
     for param in lm.model.parameters():
