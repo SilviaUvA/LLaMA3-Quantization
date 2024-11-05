@@ -24,7 +24,10 @@ from quant.int_linear import QuantLinear
 import pdb
 
 from huggingface_hub import login
-access_token = "hf_xyz" #TODO do not push your token
+
+with open("huggingface_access_token.txt") as f:
+    access_token = f.readline().strip()
+
 login(token=access_token)
 
 torch.backends.cudnn.benchmark = True
