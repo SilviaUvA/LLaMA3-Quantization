@@ -7,6 +7,7 @@
 #SBATCH --cpus-per-task=18
 #SBATCH --time=00:30:00
 #SBATCH --output=run_eval_fake_ptq_%A.out
+#SBATCH --error=error_eval_fake_ptq_%A.out
 
 module purge
 module load 2022
