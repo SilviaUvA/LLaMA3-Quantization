@@ -39,8 +39,9 @@ gptq70B="LLaMA-3-70B-GPTQ-4bit-b128" # GPTQ for LLama 3 70B
 irqlora="LLaMA-3-8B-IR-QLoRA" # IR-QLoRA
 
 quantization_model=${gptq}
+quant_method="gptq"
 
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 tasks=${tasks_commonsenseQA}
 
-python3 main.py --model ${model} --peft "Efficient-ML/"${quantization_model} --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/${quantization_model} --wbits ${wbits} --tasks ${tasks}
+python3 main.py --model ${model} --peft "Efficient-ML/"${quantization_model} --quant_method ${quant_method} --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/${quantization_model} --wbits ${wbits} --tasks ${tasks}
