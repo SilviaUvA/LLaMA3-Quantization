@@ -6,8 +6,13 @@ import torch.nn as nn
 import quant
 
 from gptq import GPTQ, Observer
-from utils import find_layers, DEV, set_seed, get_wikitext2, get_ptb, get_c4, get_ptb_new, get_c4_new, get_loaders, export_quant_table, gen_conditions
+# from utils import DEV, export_quant_table, gen_conditions # TODO: nowhere in code
+from models.models_utils import find_layers
+from datautils import set_seed, get_wikitext2, get_ptb, get_c4, get_ptb_new, get_c4_new, get_loaders
 from texttable import Texttable
+
+DEV = torch.device("cuda" if torch.cuda.is_available()
+                   else "cpu")  # TODO: was missing from import
 
 
 def get_llama(model):
@@ -37,7 +42,8 @@ def llama_sequential(model, dataloader, dev):
     layers[0] = layers[0].to(dev)
 
     dtype = next(iter(model.parameters())).dtype
-    inps = torch.zeros((args.nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev)
+    inps = torch.zeros((args.nsamples, model.seqlen,
+                       model.config.hidden_size), dtype=dtype, device=dev)
     cache = {'i': 0, 'attention_mask': None}
 
     class Catcher(nn.Module):
@@ -84,7 +90,8 @@ def llama_sequential(model, dataloader, dev):
         layer = layers[i].to(dev)
         full = find_layers(layer)
         if args.true_sequential:
-            sequential = [['self_attn.k_proj', 'self_attn.v_proj', 'self_attn.q_proj'], ['self_attn.o_proj'], ['mlp.up_proj', 'mlp.gate_proj'], ['mlp.down_proj']]
+            sequential = [['self_attn.k_proj', 'self_attn.v_proj', 'self_attn.q_proj'], [
+                'self_attn.o_proj'], ['mlp.up_proj', 'mlp.gate_proj'], ['mlp.down_proj']]
         else:
             sequential = [list(full.keys())]
 
@@ -93,7 +100,8 @@ def llama_sequential(model, dataloader, dev):
             gptq = {}
             for name in subset:
                 gptq[name] = GPTQ(subset[name], observe=args.observe)
-                gptq[name].quantizer.configure(args.wbits, perchannel=True, sym=args.sym, mse=False)
+                gptq[name].quantizer.configure(
+                    args.wbits, perchannel=True, sym=args.sym, mse=False)
 
             def add_batch(name):
 
@@ -104,23 +112,29 @@ def llama_sequential(model, dataloader, dev):
 
             handles = []
             for name in subset:
-                handles.append(subset[name].register_forward_hook(add_batch(name)))
+                handles.append(
+                    subset[name].register_forward_hook(add_batch(name)))
             for j in range(args.nsamples):
-                outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+                outs[j] = layer(inps[j].unsqueeze(
+                    0), attention_mask=attention_mask, position_ids=position_ids)[0]
             for h in handles:
                 h.remove()
 
             for name in subset:
-                scale, zero, g_idx, error = gptq[name].fasterquant(blocksize=args.blocksize, percdamp=args.percdamp, groupsize=args.groupsize, actorder=args.act_order, name=name)
-                quantizers['model.layers.%d.%s' % (i, name)] = (gptq[name].quantizer.cpu(), scale.cpu(), zero.cpu(), g_idx.cpu(), args.wbits, args.groupsize)
+                scale, zero, g_idx, error = gptq[name].fasterquant(
+                    blocksize=args.blocksize, percdamp=args.percdamp, groupsize=args.groupsize, actorder=args.act_order, name=name)
+                quantizers['model.layers.%d.%s' % (i, name)] = (gptq[name].quantizer.cpu(
+                ), scale.cpu(), zero.cpu(), g_idx.cpu(), args.wbits, args.groupsize)
 
                 if args.observe:
-                    observer.submit(name=name, layerid=i, gptq=gptq[name], error=error)
+                    observer.submit(name=name, layerid=i,
+                                    gptq=gptq[name], error=error)
                 else:
                     gptq[name].free()
 
         for j in range(args.nsamples):
-            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+            outs[j] = layer(inps[j].unsqueeze(
+                0), attention_mask=attention_mask, position_ids=position_ids)[0]
 
         layers[i] = layer.cpu()
         del layer
@@ -153,12 +167,15 @@ def llama_sequential(model, dataloader, dev):
                     # if error dropped 50%, skip
                     break
 
-                gptq.quantizer.configure(wbits, perchannel=True, sym=args.sym, mse=False)
+                gptq.quantizer.configure(
+                    wbits, perchannel=True, sym=args.sym, mse=False)
 
-                scale, zero, g_idx, error = gptq.fasterquant(percdamp=args.percdamp, groupsize=groupsize, actorder=args.act_order, name=name)
+                scale, zero, g_idx, error = gptq.fasterquant(
+                    percdamp=args.percdamp, groupsize=groupsize, actorder=args.act_order, name=name)
 
                 table.add_row([wbits, groupsize, error])
-                quantizers['model.layers.%d.%s' % (layerid, name)] = (gptq.quantizer.cpu(), scale.cpu(), zero.cpu(), g_idx.cpu(), wbits, groupsize)
+                quantizers['model.layers.%d.%s' % (layerid, name)] = (
+                    gptq.quantizer.cpu(), scale.cpu(), zero.cpu(), g_idx.cpu(), wbits, groupsize)
 
             print(table.draw())
             print('\n')
@@ -185,7 +202,8 @@ def llama_eval(model, testenc, dev):
     layers[0] = layers[0].to(dev)
 
     dtype = next(iter(model.parameters())).dtype
-    inps = torch.zeros((nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev)
+    inps = torch.zeros(
+        (nsamples, model.seqlen, model.config.hidden_size), dtype=dtype, device=dev)
     cache = {'i': 0, 'attention_mask': None}
 
     class Catcher(nn.Module):
@@ -226,13 +244,16 @@ def llama_eval(model, testenc, dev):
             subset = find_layers(layer)
             for name in subset:
                 quantizer = quant.Quantizer()
-                quantizer.configure(args.wbits, perchannel=True, sym=args.sym, mse=False)
+                quantizer.configure(
+                    args.wbits, perchannel=True, sym=args.sym, mse=False)
                 W = subset[name].weight.data
                 quantizer.find_params(W, weight=True)
-                subset[name].weight.data = quantizer.quantize(W).to(next(iter(layer.parameters())).dtype)
+                subset[name].weight.data = quantizer.quantize(
+                    W).to(next(iter(layer.parameters())).dtype)
 
         for j in range(nsamples):
-            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+            outs[j] = layer(inps[j].unsqueeze(
+                0), attention_mask=attention_mask, position_ids=position_ids)[0]
         layers[i] = layer.cpu()
         del layer
         torch.cuda.empty_cache()
@@ -250,9 +271,10 @@ def llama_eval(model, testenc, dev):
             hidden_states = model.model.norm(hidden_states)
         lm_logits = model.lm_head(hidden_states)
         shift_logits = lm_logits[:, :-1, :].contiguous()
-        shift_labels = testenc[:, (i * model.seqlen):((i + 1) * model.seqlen)][:, 1:]
+        shift_labels = testenc[:, (i * model.seqlen)                               :((i + 1) * model.seqlen)][:, 1:]
         loss_fct = nn.CrossEntropyLoss()
-        loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+        loss = loss_fct(
+            shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
         neg_log_likelihood = loss.float() * model.seqlen
         nlls.append(neg_log_likelihood)
     ppl = torch.exp(torch.stack(nlls).sum() / (nsamples * model.seqlen))
@@ -340,7 +362,7 @@ def llama_multigpu(model, gpus, gpu_dist):
             super().__init__()
             self.module = module
             self.dev = next(iter(self.module.parameters())).device
-            self.invalidate_cache=invalidate_cache
+            self.invalidate_cache = invalidate_cache
 
         def forward(self, *inp, **kwargs):
             inp = list(inp)
@@ -354,7 +376,7 @@ def llama_multigpu(model, gpus, gpu_dist):
             if cache['position_ids'] is None or cache['position_ids'].device != self.dev or self.invalidate_cache:
                 cache['position_ids'] = kwargs['position_ids'].to(self.dev)
             kwargs['position_ids'] = cache['position_ids']
-            
+
             tmp = self.module(*inp, **kwargs)
             return tmp
 
@@ -363,7 +385,8 @@ def llama_multigpu(model, gpus, gpu_dist):
     if not gpu_dist:
         pergpu = ceil(len(layers) / len(gpus))
         for i in range(len(layers)):
-            layers[i] = MoveModule(layers[i].to(0 if i == 0 or i == len(layers) -1 else gpus[(i-1) // pergpu]), i==0)
+            layers[i] = MoveModule(layers[i].to(0 if i == 0 or i == len(
+                layers) - 1 else gpus[(i-1) // pergpu]), i == 0)
     else:
         assert gpu_dist[0] >= 2, "At least two layers must be on GPU 0."
         assigned_gpus = [0] * (gpu_dist[0]-1)
@@ -377,7 +400,8 @@ def llama_multigpu(model, gpus, gpu_dist):
         assigned_gpus = assigned_gpus + [0]
 
         for i in range(len(layers)):
-            layers[i] = MoveModule(layers[i].to(gpus[assigned_gpus[i]]), i==0)
+            layers[i] = MoveModule(layers[i].to(
+                gpus[assigned_gpus[i]]), i == 0)
 
     model.gpus = gpus
 
@@ -418,17 +442,20 @@ def benchmark(model, input_ids, check=False):
         times = []
         for i in range(input_ids.numel()):
             tick = time.time()
-            out = model(input_ids[:, i:i + 1], past_key_values=cache['past'], attention_mask=attention_mask[:, :(i + 1)].reshape((1, -1)))
+            out = model(input_ids[:, i:i + 1], past_key_values=cache['past'],
+                        attention_mask=attention_mask[:, :(i + 1)].reshape((1, -1)))
             sync()
             times.append(time.time() - tick)
             print(i, times[-1])
             if hasattr(model, 'gpus'):
-                mem_allocated = sum(torch.cuda.memory_allocated(gpu) for gpu in model.gpus) / 1024 / 1024
+                mem_allocated = sum(torch.cuda.memory_allocated(gpu)
+                                    for gpu in model.gpus) / 1024 / 1024
             else:
                 mem_allocated = torch.cuda.memory_allocated() / 1024 / 1024
             max_memory = max(max_memory, mem_allocated)
             if check and i != input_ids.numel() - 1:
-                tot += loss(out.logits[0].to(DEV), input_ids[:, (i + 1)].to(DEV)).float()
+                tot += loss(out.logits[0].to(DEV),
+                            input_ids[:, (i + 1)].to(DEV)).float()
             cache['past'] = list(out.past_key_values)
             del out
         sync()
@@ -443,32 +470,53 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('model', type=str, help='llama model to load')
-    parser.add_argument('dataset', type=str, choices=['wikitext2', 'ptb', 'c4'], help='Where to extract calibration data from.')
-    parser.add_argument('--seed', type=int, default=0, help='Seed for sampling the calibration data.')
-    parser.add_argument('--nsamples', type=int, default=128, help='Number of calibration data samples.')
-    parser.add_argument('--percdamp', type=float, default=.01, help='Percent of the average Hessian diagonal to use for dampening.')
-    parser.add_argument('--nearest', action='store_true', help='Whether to run the RTN baseline.')
-    parser.add_argument('--wbits', type=int, default=16, choices=[2, 3, 4, 8, 16], help='#bits to use for quantization; use 16 for evaluating base model.')
-    parser.add_argument('--trits', action='store_true', help='Whether to use trits for quantization.')
+    parser.add_argument('dataset', type=str, choices=[
+                        'wikitext2', 'ptb', 'c4'], help='Where to extract calibration data from.')
+    parser.add_argument('--seed', type=int, default=0,
+                        help='Seed for sampling the calibration data.')
+    parser.add_argument('--nsamples', type=int, default=128,
+                        help='Number of calibration data samples.')
+    parser.add_argument('--percdamp', type=float, default=.01,
+                        help='Percent of the average Hessian diagonal to use for dampening.')
+    parser.add_argument('--nearest', action='store_true',
+                        help='Whether to run the RTN baseline.')
+    parser.add_argument('--wbits', type=int, default=16, choices=[
+                        2, 3, 4, 8, 16], help='#bits to use for quantization; use 16 for evaluating base model.')
+    parser.add_argument('--trits', action='store_true',
+                        help='Whether to use trits for quantization.')
     parser.add_argument('--blocksize', type=int, default=128, help='blocksize')
-    parser.add_argument('--groupsize', type=int, default=-1, help='Groupsize to use for quantization; default uses full row.')
-    parser.add_argument('--eval', action='store_true', help='evaluate quantized model.')
-    parser.add_argument('--test-generation', action='store_true', help='test generation.')
-    parser.add_argument('--save', type=str, default='', help='Save quantized checkpoint under this name.')
-    parser.add_argument('--save_safetensors', type=str, default='', help='Save quantized `.safetensors` checkpoint under this name.')
-    parser.add_argument('--load', type=str, default='', help='Load quantized model.')
-    parser.add_argument('--benchmark', type=int, default=0, help='Number of tokens to use for benchmarking.')
-    parser.add_argument('--check', action='store_true', help='Whether to compute perplexity during benchmarking for verification.')
-    parser.add_argument('--sym', action='store_true', help='Whether to perform symmetric quantization.')
-    parser.add_argument('--act-order', action='store_true', help='Whether to apply the activation order GPTQ heuristic')
-    parser.add_argument('--true-sequential', action='store_true', help='Whether to run in true sequential model.')
-    parser.add_argument('--new-eval', action='store_true', help='Whether to use the new PTB and C4 eval')
-    parser.add_argument('--layers-dist', type=str, default='', help='Distribution of layers across GPUs. e.g. 2:1:1 for 2 layers on GPU 0, 1 layer on GPU 1, and 1 layer on GPU 2. Any remaining layers will be assigned to your last GPU.')
+    parser.add_argument('--groupsize', type=int, default=-1,
+                        help='Groupsize to use for quantization; default uses full row.')
+    parser.add_argument('--eval', action='store_true',
+                        help='evaluate quantized model.')
+    parser.add_argument('--test-generation',
+                        action='store_true', help='test generation.')
+    parser.add_argument('--save', type=str, default='',
+                        help='Save quantized checkpoint under this name.')
+    parser.add_argument('--save_safetensors', type=str, default='',
+                        help='Save quantized `.safetensors` checkpoint under this name.')
+    parser.add_argument('--load', type=str, default='',
+                        help='Load quantized model.')
+    parser.add_argument('--benchmark', type=int, default=0,
+                        help='Number of tokens to use for benchmarking.')
+    parser.add_argument('--check', action='store_true',
+                        help='Whether to compute perplexity during benchmarking for verification.')
+    parser.add_argument('--sym', action='store_true',
+                        help='Whether to perform symmetric quantization.')
+    parser.add_argument('--act-order', action='store_true',
+                        help='Whether to apply the activation order GPTQ heuristic')
+    parser.add_argument('--true-sequential', action='store_true',
+                        help='Whether to run in true sequential model.')
+    parser.add_argument('--new-eval', action='store_true',
+                        help='Whether to use the new PTB and C4 eval')
+    parser.add_argument('--layers-dist', type=str, default='',
+                        help='Distribution of layers across GPUs. e.g. 2:1:1 for 2 layers on GPU 0, 1 layer on GPU 1, and 1 layer on GPU 2. Any remaining layers will be assigned to your last GPU.')
     parser.add_argument('--observe',
                         action='store_true',
                         help='Auto upgrade layer precision to higher precision, for example int2 to int4, groupsize 128 to 64. \
             When this feature enabled, `--save` or `--save_safetensors` would be disable.')
-    parser.add_argument('--quant-directory', type=str, default=None, help='Specify the directory for export quantization parameters to toml format. `None` means no export by default.')
+    parser.add_argument('--quant-directory', type=str, default=None,
+                        help='Specify the directory for export quantization parameters to toml format. `None` means no export by default.')
 
     args = parser.parse_args()
 
@@ -486,7 +534,8 @@ if __name__ == '__main__':
         model = get_llama(args.model)
         model.eval()
 
-    dataloader, testloader = get_loaders(args.dataset, nsamples=args.nsamples, seed=args.seed, model=args.model, seqlen=model.seqlen)
+    dataloader, testloader = get_loaders(
+        args.dataset, nsamples=args.nsamples, seed=args.seed, model=args.model, seqlen=model.seqlen)
 
     if not args.load and args.wbits < 16 and not args.nearest:
         tick = time.time()
@@ -494,7 +543,8 @@ if __name__ == '__main__':
         print(time.time() - tick)
 
     if args.benchmark:
-        gpus = [torch.device('cuda:%d' % i) for i in range(torch.cuda.device_count())]
+        gpus = [torch.device('cuda:%d' % i)
+                for i in range(torch.cuda.device_count())]
         if len(gpus) > 1:
             llama_multigpu(model, gpus, gpu_dist)
         else:
@@ -508,14 +558,18 @@ if __name__ == '__main__':
         if args.new_eval:
             datasets = ['wikitext2', 'ptb-new', 'c4-new']
         for dataset in datasets:
-            dataloader, testloader = get_loaders(dataset, seed=args.seed, model=args.model, seqlen=model.seqlen)
+            dataloader, testloader = get_loaders(
+                dataset, seed=args.seed, model=args.model, seqlen=model.seqlen)
             print(dataset)
             llama_eval(model, testloader, DEV)
-    from utils.datautils import zeroshot_evaluate
-    zeroshot_evaluate(model, args, DEV)
-    
+
+    # TODO: does not exist
+    # from utils.datautils import zeroshot_evaluate
+    # zeroshot_evaluate(model, args, DEV)
+
     if args.test_generation:
-        gpus = [torch.device('cuda:%d' % i) for i in range(torch.cuda.device_count())]
+        gpus = [torch.device('cuda:%d' % i)
+                for i in range(torch.cuda.device_count())]
         if len(gpus) > 1:
             llama_multigpu(model, gpus, gpu_dist)
         else:
@@ -523,15 +577,14 @@ if __name__ == '__main__':
 
         from transformers import LlamaTokenizer, TextStreamer
         tokenizer = LlamaTokenizer.from_pretrained(args.model, use_fast=False)
-        input_ids = tokenizer(["The capital of New Mexico is"], return_tensors="pt").input_ids.to(gpus[0])
+        input_ids = tokenizer(["The capital of New Mexico is"],
+                              return_tensors="pt").input_ids.to(gpus[0])
         streamer = TextStreamer(tokenizer)
         with torch.no_grad():
             generated_ids = model.generate(input_ids, streamer=streamer)
-        
 
-
-    if args.quant_directory is not None:
-        export_quant_table(quantizers, args.quant_directory)
+    # if args.quant_directory is not None:
+    #     export_quant_table(quantizers, args.quant_directory)
 
     if not args.observe and args.save:
         llama_pack(model, quantizers, args.wbits, args.groupsize)
