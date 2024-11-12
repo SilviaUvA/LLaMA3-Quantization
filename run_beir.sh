@@ -5,7 +5,7 @@
 #SBATCH --job-name=Beir
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
-#SBATCH --time=00:30:00
+#SBATCH --time=01:00:00
 #SBATCH --output=runBeir_%A.out
 
 module purge
@@ -54,4 +54,5 @@ cleanup() {
 trap cleanup EXIT
 
 # run actual python file
-python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --peft Efficient-ML/LLaMA-3-8B-IR-QLoRA --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-irqlora --wbits 4 #--tasks piqa,arc_easy,arc_challenge,hellaswag,winogrande
+# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --peft Efficient-ML/LLaMA-3-8B-IR-QLoRA --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-irqlora --wbits 4 #--batch_size 128 #--tasks piqa,arc_easy,arc_challenge,hellaswag,winogrande
+python3 main.py --model "Efficient-ML/LLaMA-3-8B-SmoothQuant-8bit-8bit" --quant_method gptq --eval_ppl --epochs 0 --output_dir ./log/LLaMA-3-8B-SmoothQuant-8bit-8bit --wbits 4
