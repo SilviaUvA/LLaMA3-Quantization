@@ -7,6 +7,7 @@
 #SBATCH --cpus-per-task=18
 #SBATCH --time=03:00:00
 #SBATCH --output=run_%A.out
+#SBATCH --error=error_%A.out
 
 module purge
 module load 2022
