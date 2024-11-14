@@ -5,7 +5,7 @@
 #SBATCH --job-name=testing_args
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
-#SBATCH --time=00:01:00
+#SBATCH --time=04:00:00
 #SBATCH --output=args_testing_output_%A.out
 #SBATCH --error=args_testing_error_%A.out
 
@@ -16,6 +16,8 @@ module load cuDNN/8.6.0.163-CUDA-11.8.0
 
 source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
+pip uninstall transformers
+pip install transformers==4.37.2
 conda activate llama
 
 wbits=4
@@ -34,8 +36,7 @@ billm="LLaMA-3-8B-BiLLM-1.1bit-fake " # BiLLM
 smoothquant4="LLaMA-3-8B-SmoothQuant-4bit-4bit" # SmoothQuant 4bit
 smoothquant8="LLaMA-3-8B-SmoothQuant-8bit-8bit" # SmoothQuant 8bit
 
-quantization_model=${gptq}
-
+quantization_model=${awq}
 
 gptq70B="LLaMA-3-70B-GPTQ-4bit-b128" # GPTQ for LLama 3 70B
 
@@ -45,6 +46,6 @@ irqlora="LLaMA-3-8B-IR-QLoRA" # IR-QLoRA
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 tasks=${tasks_commonsenseQA}
 
-python3 main.py --model ${model} --peft "Efficient-ML/"${irqlora} --quant_method irqlora --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/${irqlora} --wbits ${wbits} --tasks ${tasks}
+# python3 main.py --model ${model} --peft "Efficient-ML/"${irqlora} --quant_method irqlora --tau_range 0.1 --tau_n 100 --blocksize2 256 --epochs 0 --output_dir ./log/${irqlora} --wbits ${wbits} --abits ${wbits} --tasks ${tasks}
 
-python3 main.py --model "Efficient-ML/"${quantization_model} --quant_method gptq --eval_ppl --epochs 0 --output_dir ./log/${quantization_model} --wbits ${wbits}
+python3 main.py --model "Efficient-ML/"${quantization_model} --quant_method gptq --eval_ppl --epochs 10 --output_dir ./log/${quantization_model} --wbits ${wbits}  --abits ${wbits} --lwc --net "llama-7b"
