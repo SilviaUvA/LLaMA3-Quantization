@@ -153,24 +153,26 @@ def evaluate(lm, args, logger):
             lm.model.config.use_cache = use_cache
             results[dataset] = ppl.item()
     if args.tasks != "":
+        logger.info(f"Evaluating tasks: {args.tasks}")
         t_results = evaluator.simple_evaluate(
             lm,
             tasks=args.tasks,
             num_fewshot=args.num_fewshot,
             limit=None if args.limit == -1 else args.limit,
         )
+        logger.info(f"Raw results: {t_results}")  # Add this line
         results.update(t_results)
         logger.info(results)
         pprint(results)
         # for test of MMLU
-        if 'hendrycksTest' in args.tasks:
+        if any(task.startswith('hendrycksTest') for task in args.tasks.split(',')): # if 'hendrycksTest' in args.tasks
             all_cors = []
             all_cors_norm = []
             subcat_cors = {subcat: [] for subcat_lists in subcategories.values() for subcat in subcat_lists}
             cat_cors = {cat: [] for cat in categories}
             cat_cors_norm = {cat: [] for cat in categories}
             for key in t_results['results'].keys():
-                if not 'hendrycksTest' in key:
+                if not key.startswith('hendrycksTest'):   # if not 'hendrycksTest' in key
                     continue
                 subject = key.split('-')[-1]
                 cors = t_results['results'][key]['acc']

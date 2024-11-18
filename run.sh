@@ -5,7 +5,7 @@
 #SBATCH --job-name=Run
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
-#SBATCH --time=00:30:00
+#SBATCH --time=05:00:00
 #SBATCH --output=run_%A.out
 
 module purge
@@ -17,4 +17,4 @@ source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
 conda activate llama
 
-python3 main.py --model meta-llama/Meta-Llama-3-8B --peft Efficient-ML/LLaMA-3-8B-IR-QLoRA --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/llama-3-8b-irqlora --wbits 4 --tasks piqa,arc_easy,arc_challenge,hellaswag,winogrande
+python3 main.py --model meta-llama/Meta-Llama-3-8B --peft Efficient-ML/LLaMA-3-8B-IR-QLoRA --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/llama-3-8b-irqlora-mmlu --wbits 4 --tasks "hendrycksTest-*" #piqa,arc_easy,arc_challenge,hellaswag,winogrande
