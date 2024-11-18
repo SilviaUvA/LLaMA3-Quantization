@@ -297,7 +297,7 @@ class QLlamaCEModel:
             batch_query_docs = [f"{q}\n\n{doc}" for q, doc in batch_sentences]
             loaded = self.model.tok_encode_batch(batch_query_docs) #dict object, with key input_ids (padded) and attention_mask
             testenc = loaded["input_ids"].to(self.model.device)
-            test_attn_mask = loaded["attention_mask"].to(self.model.device)
+            # test_attn_mask = loaded["attention_mask"].to(self.model.device)
 
             nsamples = testenc.numel() // self.model.seqlen
             if nsamples == 0:
@@ -309,14 +309,14 @@ class QLlamaCEModel:
             nlls = []
             for j in tqdm(range(nsamples)):
                 batch = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)].to(self.model.device)
-                # if "opt" in args.net.lower():
-                    # outputs = lm.model.model.decoder(batch)
-                # elif "llama" in args.net.lower() or "mixtral" in args.net.lower():
-                outputs = self.model.model.model(batch) #TODO probably need to adjust the if/elif etc as well for full compatibility with the rest of their code...
-                # elif "falcon" in args.model:
-                    # outputs = lm.model.transformer(batch)
-                hidden_states = outputs[0] #TODO what if you have very long documents > seqlen? How to combine them? Still eos token only? Seems like model can handle it so lets not do this nsamples thing
-                # print("HIDDEN STATES: ", hidden_states.shape) #TODO
+                if "opt" in self.args.net.lower():
+                    outputs = self.model.model.model.decoder(batch)
+                elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
+                    outputs = self.model.model.model(batch)
+                elif "falcon" in self.args.model:
+                    outputs = self.model.model.transformer(batch)
+
+                hidden_states = outputs[0]
                 logits = self.model.model.lm_head(hidden_states)
                 shift_logits = logits[:, :-1, :]
                 shift_labels = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)][
@@ -332,7 +332,7 @@ class QLlamaCEModel:
                 if j == self.args.limit:
                     break
     
-            ppl = -torch.exp(torch.stack(nlls).sum() / (nsamples * self.model.seqlen)) # -1 because it picks the highest scores
+            ppl = -torch.exp(torch.stack(nlls).sum() / (nsamples * self.model.seqlen)) # - because it picks the highest scores
             self.model.model.config.use_cache = use_cache
             ppls.append(ppl.item())
         return ppls
@@ -408,7 +408,7 @@ def main():
     #### /print debug information to stdout
 
     #### Download scifact.zip dataset and unzip the dataset
-    dataset = args.beirdata #TODO change this into args with choices
+    dataset = args.beirdata
     url = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{}.zip".format(dataset)
     out_dir = os.path.join(pathlib.Path(__file__).parent.absolute(), "datasets")
     data_path = util.download_and_unzip(url, out_dir)
@@ -450,7 +450,7 @@ def main():
     ################################################
     #### (2) RERANK Top-100 docs using Cross-Encoder
     ################################################
-    # #### Reranking using Cross-Encoder models ##### #TODO use if/else arg for use ce or use be
+    #### Reranking using Cross-Encoder models #####
     if args.ce:
         reranker = Rerank(QLlamaCEModel(args), batch_size=args.batch_size)
         # Rerank top-100 results using the reranker provided
