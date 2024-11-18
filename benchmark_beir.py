@@ -23,7 +23,6 @@ except ImportError:
     from beir.reranking import Rerank
     from beir.retrieval.search.dense import DenseRetrievalExactSearch as DRES
 
-
 import random
 import numpy as np
 from models.LMClass import LMClass
@@ -39,7 +38,7 @@ from tqdm import tqdm
 import utils
 from pathlib import Path
 from categories import subcategories, categories
-
+from transformers import AutoTokenizer
 from models.int_llama_layer import QuantLlamaDecoderLayer
 from models.int_opt_layer import QuantOPTDecoderLayer
 from quant.int_linear import QuantLinear
@@ -215,52 +214,78 @@ def load_model(args):
 class QLlamaDEModel:
     def __init__(self, args):
         self.model, self.logger = load_model(args) # ---> HERE Load your custom model
+        self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
+        self.args = args
     
     # Write your own encoding query function (Returns: Query embeddings as numpy array)
     def encode_queries(self, queries: List[str], batch_size: int, **kwargs) -> np.ndarray:
         all_hidden_states = []
-        # print("QUERIES: ", len(queries), len(queries[0]), queries[0]) #TODO
+
+        queries = [query + self.model.tokenizer.eos_token for query in queries]
 
         for i in range(0, len(queries), batch_size):
             batch_queries = queries[i:i + batch_size]
-            self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
-            loaded = self.model.tok_encode_batch(batch_queries) #dict object, with key input_ids (padded) and attention_mask. I should probably normalize by using the attentionmask?
-            testenc = loaded["input_ids"].to(self.model.device)
+            loaded = self.model.tok_encode_batch(batch_queries)
+            input = loaded["input_ids"].to(self.model.device)
             attn_mask = loaded["attention_mask"].to(self.model.device)
-            # nsamples = testenc.numel() // self.model.seqlen
-            # if nsamples == 0:
-                # nsamples += 1
+            # eos_token_ids = torch.sum(attn_mask, 1) - 1
+            eos_token_ids = torch.sum(attn_mask, 1) - 2 #TODO now taking last word of document
             self.model.model.config.use_cache = False
             self.model.model.eval()
-            # for j in tqdm(range(nsamples)):
-                # batch = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)].to(self.model.device)
-            batch = testenc.to(self.model.device)
-        
-            print("BATCH SHAPE: ", batch.shape)
-                # if "opt" in args.net.lower():
-                    # outputs = lm.model.model.decoder(batch)
-                # elif "llama" in args.net.lower() or "mixtral" in args.net.lower():
-            outputs = self.model.model.model(batch) #TODO probably need to adjust the if/elif etc as well for full compatibility with the rest of their code...
-                # elif "falcon" in args.model:
-                    # outputs = lm.model.transformer(batch)
+
+            if "opt" in self.args.net.lower():
+                outputs = self.model.model.model.decoder(input)
+            elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
+                outputs = self.model.model.model(input)
+            elif "falcon" in self.args.model:
+                outputs = self.model.model.transformer(input)
+
             hidden_states = outputs[0]
-            # print("HIDDEN STATE SHAPE : ", hidden_states.shape) #TODO
-            all_hidden_states.append(hidden_states.numpy(force=True))
-            
-        return np.array(all_hidden_states)
-    
+
+            for j in range(hidden_states.shape[0]):
+                all_hidden_states.append(hidden_states[j, eos_token_ids[j]].type(torch.float32).numpy(force=True))
+
+        all_hidden_states = np.array(all_hidden_states)
+        # all_hidden_states = torch.tensor(all_hidden_states)
+
+        # Batch size x embedding dim (B, 4096) 
+        return all_hidden_states
+
     # Write your own encoding corpus function (Returns: Document embeddings as numpy array)  
     def encode_corpus(self, corpus: List[Dict[str, str]], batch_size: int, **kwargs) -> np.ndarray:
-        # pass
-        print("CORPUS: ", corpus) #TODO
+        all_docs = []
+        title_text_corpus = [f"{i['title']}\n\n{i['text']} {self.model.tokenizer.eos_token}" for i in corpus]
+
+        for i in range(0, len(title_text_corpus), batch_size):
+            batch_docs = title_text_corpus[i: i + batch_size]
+            loaded = self.model.tok_encode_batch(batch_docs)
+            input = loaded["input_ids"].to(self.model.device)
+            attn_mask = loaded["attention_mask"].to(self.model.device)
+            eos_token_ids = torch.sum(attn_mask, 1) - 2 #TODO now taking last word of document
+            self.model.model.config.use_cache = False
+            self.model.model.eval()
+
+            if "opt" in self.args.net.lower():
+                outputs = self.model.model.model.decoder(input)
+            elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
+                outputs = self.model.model.model(input)
+            elif "falcon" in self.args.model:
+                outputs = self.model.model.transformer(input)
+
+            hidden_states = outputs[0]
+            for j in range(hidden_states.shape[0]):
+                all_docs.append(hidden_states[j, eos_token_ids[j]].type(torch.float32).numpy(force=True))
+        
+        all_docs = np.array(all_docs)
+        # all_docs = torch.tensor(all_docs)
+        # Batch size x embedding dim (B, 4096)
+        return all_docs
 
 class QLlamaCEModel:
     def __init__(self, args):   
         self.model, self.logger = load_model(args) # ---> HERE Load your custom model
         self.args = args
-
-        # self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False,legacy=False) #TODO check for settings in their datautils, perhaps copy those instead of using .tok_encode_batch()
-
+        self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
     
     # Write your own score function, which takes in query-document text pairs and returns the similarity scores
     def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwags) -> List[float]:
@@ -270,7 +295,6 @@ class QLlamaCEModel:
         for i in range(0, len(sentences), batch_size):
             batch_sentences = sentences[i:i + batch_size]
             batch_query_docs = [f"{q}\n\n{doc}" for q, doc in batch_sentences]
-            self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
             loaded = self.model.tok_encode_batch(batch_query_docs) #dict object, with key input_ids (padded) and attention_mask
             testenc = loaded["input_ids"].to(self.model.device)
             test_attn_mask = loaded["attention_mask"].to(self.model.device)
@@ -291,7 +315,7 @@ class QLlamaCEModel:
                 outputs = self.model.model.model(batch) #TODO probably need to adjust the if/elif etc as well for full compatibility with the rest of their code...
                 # elif "falcon" in args.model:
                     # outputs = lm.model.transformer(batch)
-                hidden_states = outputs[0] #TODO what if you have very long documents > seqlen? How to combine them? Still eos token only?
+                hidden_states = outputs[0] #TODO what if you have very long documents > seqlen? How to combine them? Still eos token only? Seems like model can handle it so lets not do this nsamples thing
                 # print("HIDDEN STATES: ", hidden_states.shape) #TODO
                 logits = self.model.model.lm_head(hidden_states)
                 shift_logits = logits[:, :-1, :]
@@ -369,6 +393,10 @@ def main():
     parser.add_argument("--tau_n", type=int, default=100)
     parser.add_argument("--blocksize2", type=int, default=256)
 
+    parser.add_argument("--ce", action="store_true", help="Rerank with crossencoder")
+    parser.add_argument("--be", action="store_true", help="Rerank with biencoder")
+    parser.add_argument("--beirdata", type=str, default="scifact", choices=["scifact", "msmarco", "trec-covid", "nfcorpus", "nq", "hotpotqa", "fiqa", "arguana", "webis-touche2020", "cqadupstack", "quora", "dbpedia-entity", "scidocs", "fever", "climate-fever"])
+
     args = parser.parse_args()
     set_seed(args.seed)
 
@@ -380,7 +408,7 @@ def main():
     #### /print debug information to stdout
 
     #### Download scifact.zip dataset and unzip the dataset
-    dataset = "scifact" #TODO change this into args with choices
+    dataset = args.beirdata #TODO change this into args with choices
     url = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{}.zip".format(dataset)
     out_dir = os.path.join(pathlib.Path(__file__).parent.absolute(), "datasets")
     data_path = util.download_and_unzip(url, out_dir)
@@ -422,29 +450,31 @@ def main():
     ################################################
     #### (2) RERANK Top-100 docs using Cross-Encoder
     ################################################
-    #### Reranking using Cross-Encoder models ##### #TODO use if/else arg for use ce or use be
-    reranker = Rerank(QLlamaCEModel(args), batch_size=args.batch_size)
-    # Rerank top-100 results using the reranker provided
-    rerank_results = reranker.rerank(corpus, queries, results, top_k=100)
-    #### Evaluate your retrieval using NDCG@k, MAP@K ...
-    ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
-    logging.info(f"CE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
+    # #### Reranking using Cross-Encoder models ##### #TODO use if/else arg for use ce or use be
+    if args.ce:
+        reranker = Rerank(QLlamaCEModel(args), batch_size=args.batch_size)
+        # Rerank top-100 results using the reranker provided
+        rerank_results = reranker.rerank(corpus, queries, results, top_k=100)
+        #### Evaluate your retrieval using NDCG@k, MAP@K ...
+        ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
+        logging.info(f"CE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
 
 
-    # ## Everything for the bi one
-    # #### Retrieve dense results (format of results is identical to qrels)
-    # model = DRES(QLlamaDEModel(args), batch_size=args.batch_size)
-    # dense_retriever = EvaluateRetrieval(model, score_function="cos_sim", k_values=[1,3,5,10,100])
-    # rerank_results = dense_retriever.rerank(corpus, queries, results, top_k=100)
-    # #### Evaluate your retrieval using NDCG@k, MAP@K ...
-    # ndcg, _map, recall, precision, hole = dense_retriever.evaluate(qrels, rerank_results, retriever.k_values)
-    # logging.info(f"BE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}, HOLE: {hole}")
+    ## Everything for the bi one
+    if args.be:
+        #### Retrieve dense results (format of results is identical to qrels)
+        model = DRES(QLlamaDEModel(args), batch_size=args.batch_size, use_gpu=True)
+        dense_retriever = EvaluateRetrieval(model, score_function="cos_sim", k_values=[1,3,5,10,100])
+        rerank_results = dense_retriever.rerank(corpus, queries, results, top_k=100)
+        #### Evaluate your retrieval using NDCG@k, MAP@K ...
+        ndcg, _map, recall, precision = dense_retriever.evaluate(qrels, rerank_results, retriever.k_values)
+        logging.info(f"BE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
 
 
     ### Evaluate your retrieval using NDCG@k, MAP@K -> this below is without reranking so essentially the bm25 baseline
     # logging.info("Retriever evaluation for k in: {}".format(retriever.k_values))
-    # ndcg, _map, recall, precision = retriever.evaluate(qrels, results, retriever.k_values)
-    # print("NDCG, MAP, RECALL, PRECISION SECOND: ", ndcg, _map, recall, precision)
+    ndcg, _map, recall, precision = retriever.evaluate(qrels, results, retriever.k_values)
+    logging.info(f"BM25 metrics (baseline). NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
 
 
 if __name__ == "__main__":
