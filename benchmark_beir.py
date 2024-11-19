@@ -5,23 +5,12 @@ import torch
 import sys
 from typing import List, Dict, Tuple
 
-#TODO should incorporate these into environment later (beir & elasticsearch) -> Successfully installed Pillow-11.0.0 beir-2.0.0 elasticsearch-7.9.1 (this one goes via sh file) faiss_cpu-1.9.0 pytrec_eval-0.5 sentence-transformers-3.2.1
-try:
-    from beir import util, LoggingHandler
-    from beir.datasets.data_loader import GenericDataLoader
-    from beir.retrieval.evaluation import EvaluateRetrieval
-    from beir.retrieval.search.lexical import BM25Search as BM25
-    from beir.reranking import Rerank
-    from beir.retrieval.search.dense import DenseRetrievalExactSearch as DRES
-except ImportError:
-    import subprocess
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "beir"])
-    from beir import util, LoggingHandler
-    from beir.datasets.data_loader import GenericDataLoader
-    from beir.retrieval.evaluation import EvaluateRetrieval
-    from beir.retrieval.search.lexical import BM25Search as BM25
-    from beir.reranking import Rerank
-    from beir.retrieval.search.dense import DenseRetrievalExactSearch as DRES
+from beir import util, LoggingHandler
+from beir.datasets.data_loader import GenericDataLoader
+from beir.retrieval.evaluation import EvaluateRetrieval
+from beir.retrieval.search.lexical import BM25Search as BM25
+from beir.reranking import Rerank
+from beir.retrieval.search.dense import DenseRetrievalExactSearch as DRES
 
 import random
 import numpy as np
@@ -38,7 +27,7 @@ from tqdm import tqdm
 import utils
 from pathlib import Path
 from categories import subcategories, categories
-from transformers import AutoTokenizer
+
 from models.int_llama_layer import QuantLlamaDecoderLayer
 from models.int_opt_layer import QuantOPTDecoderLayer
 from quant.int_linear import QuantLinear
@@ -459,17 +448,15 @@ def main():
         ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
         logging.info(f"CE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
 
-
     ## Everything for the bi one
     if args.be:
         #### Retrieve dense results (format of results is identical to qrels)
-        model = DRES(QLlamaDEModel(args), batch_size=args.batch_size, use_gpu=True)
+        model = DRES(QLlamaDEModel(args), batch_size=args.batch_size)
         dense_retriever = EvaluateRetrieval(model, score_function="cos_sim", k_values=[1,3,5,10,100])
         rerank_results = dense_retriever.rerank(corpus, queries, results, top_k=100)
         #### Evaluate your retrieval using NDCG@k, MAP@K ...
         ndcg, _map, recall, precision = dense_retriever.evaluate(qrels, rerank_results, retriever.k_values)
         logging.info(f"BE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
-
 
     ### Evaluate your retrieval using NDCG@k, MAP@K -> this below is without reranking so essentially the bm25 baseline
     # logging.info("Retriever evaluation for k in: {}".format(retriever.k_values))
