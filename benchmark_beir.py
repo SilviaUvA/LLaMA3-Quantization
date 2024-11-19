@@ -438,6 +438,9 @@ def main():
     parser.add_argument("--be", action="store_true", help="Rerank with biencoder")
     parser.add_argument("--upr", action="store_true", help="Rerank with UPR crossencoder")
     parser.add_argument("--beirdata", type=str, default="scifact", choices=["scifact", "msmarco", "trec-covid", "nfcorpus", "nq", "hotpotqa", "fiqa", "arguana", "webis-touche2020", "cqadupstack", "quora", "dbpedia-entity", "scidocs", "fever", "climate-fever"])
+    parser.add_argument("--header", type=str, default="Passage:", help="Text preprended to document for UPR prompt")
+    parser.add_argument("--instruction", type=str, default="Please write a question based on this passage.", help="Instruction text appended to document for UPR prompt, depends on --beirdata task")
+    parser.add_argument("--topk", type=int, default=100, help="# documents to rerank")
 
     args = parser.parse_args()
     set_seed(args.seed)
@@ -496,15 +499,15 @@ def main():
     if args.ce:
         reranker = Rerank(QLlamaCEModel(args), batch_size=args.batch_size)
         # Rerank top-100 results using the reranker provided
-        rerank_results = reranker.rerank(corpus, queries, results, top_k=100)
+        rerank_results = reranker.rerank(corpus, queries, results, top_k=args.topk)
         #### Evaluate your retrieval using NDCG@k, MAP@K ...
         ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
         logging.info(f"CE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
     
     if args.upr:
-        reranker = Rerank(QLlamaUPRModel(args, header="Passage:", instruction="Please write a question based on this passage."), batch_size=args.batch_size)
+        reranker = Rerank(QLlamaUPRModel(args, header=args.header, instruction=args.instruction), batch_size=args.batch_size)
         # Rerank top-100 results using the reranker provided
-        rerank_results = reranker.rerank(corpus, queries, results, top_k=100)
+        rerank_results = reranker.rerank(corpus, queries, results, top_k=args.topk)
         #### Evaluate your retrieval using NDCG@k, MAP@K ...
         ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
         logging.info(f"UPR metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
@@ -514,7 +517,7 @@ def main():
         #### Retrieve dense results (format of results is identical to qrels)
         model = DRES(QLlamaDEModel(args), batch_size=args.batch_size)
         dense_retriever = EvaluateRetrieval(model, score_function="cos_sim", k_values=[1,3,5,10,100])
-        rerank_results = dense_retriever.rerank(corpus, queries, results, top_k=100)
+        rerank_results = dense_retriever.rerank(corpus, queries, results, top_k=args.topk)
         #### Evaluate your retrieval using NDCG@k, MAP@K ...
         ndcg, _map, recall, precision = dense_retriever.evaluate(qrels, rerank_results, retriever.k_values)
         logging.info(f"BE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
