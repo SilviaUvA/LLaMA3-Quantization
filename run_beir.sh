@@ -55,5 +55,15 @@ cleanup() {
 trap cleanup EXIT
 
 # run actual python file
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --peft Efficient-ML/LLaMA-3-8B-IR-QLoRA --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-irqlora --wbits 4 #--batch_size 128 #--tasks piqa,arc_easy,arc_challenge,hellaswag,winogrande
-python3 benchmark_beir.py --model "Efficient-ML/LLaMA-3-8B-SmoothQuant-8bit-8bit" --quant_method gptq --eval_ppl --epochs 0 --output_dir ./log/beir/LLaMA-3-8B-SmoothQuant-8bit-8bit --wbits 8 --abits 8 --ce --be
+# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --peft Efficient-ML/LLaMA-3-8B-IR-QLoRA --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-irqlora --wbits 4 #--batch_size 128 
+# python3 benchmark_beir.py --model "Efficient-ML/LLaMA-3-8B-SmoothQuant-8bit-8bit" --quant_method gptq --epochs 0 --output_dir ./log/beir/LLaMA-3-8B-SmoothQuant-8bit-8bit --wbits 8 --abits 8 --ce --be
+# python3 benchmark_beir.py --model "Efficient-ML/LLaMA-3-8B-AWQ-4bit-b128" --quant_method gptq --epochs 1 --output_dir ./log/beir/LLaMA-3-8B-AWQ-4bit-b128-epoch1 --wbits 4 --group_size 128 --lwc --net "llama-7b" --be
+# python3 benchmark_beir.py --model "Efficient-ML/LLaMA-3-8B-AWQ-4bit-b128" --quant_method gptq --epochs 1 --output_dir ./log/beir/LLaMA-3-8B-AWQ-4bit-b128-epoch1 --wbits 4 --group_size 128 --lwc --net "llama-7b" --ce
+# python3 benchmark_beir.py --model "Efficient-ML/LLaMA-3-8B-AWQ-4bit-b128" --quant_method gptq --epochs 0 --output_dir ./log/beir/LLaMA-3-8B-AWQ-4bit-b128-epoch0 --wbits 4 --group_size 128 --ce --be
+
+# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-irqlora --ce --be #--wbits 4 #--batch_size 128 
+# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-irqlora --ce #--wbits 4 #--batch_size 128 
+# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-upr --upr #--wbits 4 #--batch_size 128 
+python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-upr-hotpotqa --upr --beirdata hotpotqa #--wbits 4 #--batch_size 128 
+
+

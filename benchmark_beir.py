@@ -217,19 +217,20 @@ class QLlamaDEModel:
             loaded = self.model.tok_encode_batch(batch_queries)
             input = loaded["input_ids"].to(self.model.device)
             attn_mask = loaded["attention_mask"].to(self.model.device)
-            # eos_token_ids = torch.sum(attn_mask, 1) - 1
-            eos_token_ids = torch.sum(attn_mask, 1) - 2 #TODO now taking last word of document
+            eos_token_ids = torch.sum(attn_mask, 1) - 1
+            # eos_token_ids = torch.sum(attn_mask, 1) - 2 #TODO now taking last word of document but that makes no sense
             self.model.model.config.use_cache = False
             self.model.model.eval()
 
-            if "opt" in self.args.net.lower():
-                outputs = self.model.model.model.decoder(input)
-            elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
-                outputs = self.model.model.model(input)
-            elif "falcon" in self.args.model:
-                outputs = self.model.model.transformer(input)
+            with torch.no_grad():
+                if "opt" in self.args.net.lower():
+                    outputs = self.model.model.model.decoder(input)
+                elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
+                    outputs = self.model.model.model(input)
+                elif "falcon" in self.args.model:
+                    outputs = self.model.model.transformer(input)
 
-            hidden_states = outputs[0]
+            hidden_states = outputs[0] #TODO hidden states from lm_head..?
 
             for j in range(hidden_states.shape[0]):
                 all_hidden_states.append(hidden_states[j, eos_token_ids[j]].type(torch.float32).numpy(force=True))
@@ -250,16 +251,18 @@ class QLlamaDEModel:
             loaded = self.model.tok_encode_batch(batch_docs)
             input = loaded["input_ids"].to(self.model.device)
             attn_mask = loaded["attention_mask"].to(self.model.device)
-            eos_token_ids = torch.sum(attn_mask, 1) - 2 #TODO now taking last word of document
+            eos_token_ids = torch.sum(attn_mask, 1) - 1
+            # eos_token_ids = torch.sum(attn_mask, 1) - 2 #TODO now taking last word of document but that makes no sense
             self.model.model.config.use_cache = False
             self.model.model.eval()
 
-            if "opt" in self.args.net.lower():
-                outputs = self.model.model.model.decoder(input)
-            elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
-                outputs = self.model.model.model(input)
-            elif "falcon" in self.args.model:
-                outputs = self.model.model.transformer(input)
+            with torch.no_grad():
+                if "opt" in self.args.net.lower():
+                    outputs = self.model.model.model.decoder(input)
+                elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
+                    outputs = self.model.model.model(input)
+                elif "falcon" in self.args.model:
+                    outputs = self.model.model.transformer(input)
 
             hidden_states = outputs[0]
             for j in range(hidden_states.shape[0]):
@@ -277,7 +280,7 @@ class QLlamaCEModel:
         self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
     
     # Write your own score function, which takes in query-document text pairs and returns the similarity scores
-    def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwags) -> List[float]:
+    def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwargs) -> List[float]:
         # return only the list of float scores
         ppls = []
 
@@ -298,12 +301,14 @@ class QLlamaCEModel:
             nlls = []
             for j in tqdm(range(nsamples)):
                 batch = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)].to(self.model.device)
-                if "opt" in self.args.net.lower():
-                    outputs = self.model.model.model.decoder(batch)
-                elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
-                    outputs = self.model.model.model(batch)
-                elif "falcon" in self.args.model:
-                    outputs = self.model.model.transformer(batch)
+
+                with torch.no_grad():
+                    if "opt" in self.args.net.lower():
+                        outputs = self.model.model.model.decoder(batch)
+                    elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
+                        outputs = self.model.model.model(batch)
+                    elif "falcon" in self.args.model:
+                        outputs = self.model.model.transformer(batch)
 
                 hidden_states = outputs[0]
                 logits = self.model.model.lm_head(hidden_states)
@@ -325,6 +330,53 @@ class QLlamaCEModel:
             self.model.model.config.use_cache = use_cache
             ppls.append(ppl.item())
         return ppls
+
+
+class QLlamaUPRModel:
+    def __init__(self, args, **kwargs):   
+        self.model, self.logger = load_model(args) # ---> HERE Load your custom model
+        self.args = args
+        self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
+        self.kwargs = kwargs
+    
+    # Write your own score function, which takes in query-document text pairs and returns the similarity scores
+    def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwargs) -> List[float]:
+        # return only the list of float scores
+        separated = list(zip(*sentences))
+        header = self.kwargs["header"]
+        instruction = self.kwargs["instruction"]
+        cond_input = [f"{header} {doc} {instruction}" for doc in separated[0]]
+        queries = separated[1]
+
+        nlls = []
+        for i in range(0, len(sentences), batch_size):
+            batch_cond_input = cond_input[i: i + batch_size]
+            batch_queries = queries[i: i + batch_size]
+
+            tok_contexts = self.model.tok_encode_batch(batch_cond_input) #dict object, with key input_ids (padded) and attention_mask
+            context_input_ids, context_attn_mask = tok_contexts.input_ids.to(self.model.device), tok_contexts.attention_mask.to(self.model.device)
+            tok_queries = self.model.tok_encode_batch(batch_queries)
+            tar_input_ids, tar_attn_mask = tok_queries.input_ids.to(self.model.device), tok_queries.attention_mask.to(self.model.device)
+
+            combi_input_ids = torch.cat([context_input_ids, tar_input_ids], dim=1)
+            combi_attn_mask = torch.cat([context_attn_mask, tar_attn_mask], dim=1)
+
+            # mask context out for loss calc
+            labels = combi_input_ids.clone()
+            labels[:, :context_input_ids.shape[1]] = -100 
+
+            self.model.model.config.use_cache = False
+            self.model.model.eval()
+
+            with torch.no_grad():
+                if "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
+                    outputs = self.model.model(input_ids=combi_input_ids, attention_mask=combi_attn_mask, labels=labels)
+                else:
+                    raise NotImplementedError
+            loss = outputs.loss
+            nlls.append(-loss.item())
+
+        return nlls
 
 
 
@@ -384,6 +436,7 @@ def main():
 
     parser.add_argument("--ce", action="store_true", help="Rerank with crossencoder")
     parser.add_argument("--be", action="store_true", help="Rerank with biencoder")
+    parser.add_argument("--upr", action="store_true", help="Rerank with UPR crossencoder")
     parser.add_argument("--beirdata", type=str, default="scifact", choices=["scifact", "msmarco", "trec-covid", "nfcorpus", "nq", "hotpotqa", "fiqa", "arguana", "webis-touche2020", "cqadupstack", "quora", "dbpedia-entity", "scidocs", "fever", "climate-fever"])
 
     args = parser.parse_args()
@@ -447,6 +500,14 @@ def main():
         #### Evaluate your retrieval using NDCG@k, MAP@K ...
         ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
         logging.info(f"CE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
+    
+    if args.upr:
+        reranker = Rerank(QLlamaUPRModel(args, header="Passage:", instruction="Please write a question based on this passage."), batch_size=args.batch_size)
+        # Rerank top-100 results using the reranker provided
+        rerank_results = reranker.rerank(corpus, queries, results, top_k=100)
+        #### Evaluate your retrieval using NDCG@k, MAP@K ...
+        ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
+        logging.info(f"UPR metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
 
     ## Everything for the bi one
     if args.be:
