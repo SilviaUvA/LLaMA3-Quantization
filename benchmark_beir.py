@@ -338,6 +338,7 @@ class QLlamaUPRModel:
         self.args = args
         self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
         self.kwargs = kwargs
+        self.epsilon = 0.001
     
     # Write your own score function, which takes in query-document text pairs and returns the similarity scores
     def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwargs) -> List[float]:
@@ -345,8 +346,8 @@ class QLlamaUPRModel:
         separated = list(zip(*sentences))
         header = self.kwargs["header"]
         instruction = self.kwargs["instruction"]
-        cond_input = [f"{header} {doc} {instruction}" for doc in separated[0]]
-        queries = separated[1]
+        cond_input = [f"{header} {doc} {instruction}" for doc in separated[1]]
+        queries = separated[0]
 
         nlls = []
         for i in range(0, len(sentences), batch_size):
@@ -375,9 +376,13 @@ class QLlamaUPRModel:
                     raise NotImplementedError
             loss = outputs.loss
             nlls.append(-loss.item())
+            # nlls.append(loss.item())
 
+        # nlls_array = np.array(nlls)
+        # max_nll = np.max(nlls_array)
+        # nlls_array = max_nll - nlls_array + self.epsilon
+        # return nlls_array.tolist()
         return nlls
-
 
 
 def main():
@@ -515,16 +520,39 @@ def main():
     ## Everything for the bi one
     if args.be:
         #### Retrieve dense results (format of results is identical to qrels)
-        model = DRES(QLlamaDEModel(args), batch_size=args.batch_size)
-        dense_retriever = EvaluateRetrieval(model, score_function="cos_sim", k_values=[1,3,5,10,100])
+        dense_model = DRES(QLlamaDEModel(args), batch_size=args.batch_size)
+        dense_retriever = EvaluateRetrieval(dense_model, score_function="cos_sim", k_values=[1,3,5,10,100])
         rerank_results = dense_retriever.rerank(corpus, queries, results, top_k=args.topk)
         #### Evaluate your retrieval using NDCG@k, MAP@K ...
         ndcg, _map, recall, precision = dense_retriever.evaluate(qrels, rerank_results, retriever.k_values)
         logging.info(f"BE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
 
-    ### Evaluate your retrieval using NDCG@k, MAP@K -> this below is without reranking so essentially the bm25 baseline
-    # logging.info("Retriever evaluation for k in: {}".format(retriever.k_values))
+
+
+    # from beir.reranking.models import CrossEncoder
+    # ### Evaluate your retrieval using NDCG@k, MAP@K -> this below is without reranking so essentially the bm25 baseline
+    # # logging.info("Retriever evaluation for k in: {}".format(retriever.k_values))
+    # cross_encoder_model = CrossEncoder('cross-encoder/ms-marco-electra-base')
+
+    # #### Or use MiniLM, TinyBERT etc. CE models (https://www.sbert.net/docs/pretrained-models/ce-msmarco.html)
+    # # cross_encoder_model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+    # # cross_encoder_model = CrossEncoder('cross-encoder/ms-marco-TinyBERT-L-6')
+
+    # reranker = Rerank(cross_encoder_model, batch_size=args.batch_size)
+
+    # # Rerank top-100 results using the reranker provided
+    # rerank_results = reranker.rerank(corpus, queries, results, top_k=args.topk)
+
+    # #### Evaluate your retrieval using NDCG@k, MAP@K ...
+    # ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values)
+    # # print("DEFAULT CE RERANK RESULTS: ", rerank_results)
+    # logging.info(f"DEFAULT CE RERANK RESULTS. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
+
+
+
+
     ndcg, _map, recall, precision = retriever.evaluate(qrels, results, retriever.k_values)
+    # print("BM25 RANK RESULTS: ", results)
     logging.info(f"BM25 metrics (baseline). NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
 
 
