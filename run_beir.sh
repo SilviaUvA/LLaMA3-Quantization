@@ -64,6 +64,9 @@ trap cleanup EXIT
 # python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-irqlora --ce --be #--wbits 4 #--batch_size 128 
 # python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-irqlora --ce #--wbits 4 #--batch_size 128 
 # python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-upr --upr #--wbits 4 #--batch_size 128 
-python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-upr-hotpotqa --upr --beirdata hotpotqa #--wbits 4 #--batch_size 128 
+# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-upr-hotpotqa --upr --beirdata hotpotqa #--wbits 4 #--batch_size 128 
+# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/test-batchsize1-uprdefaultbase --topk 10 --upr #--wbits 4 #--batch_size 128 
+# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B-Instruct --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/test-instructllama-batchsize1-uprdefaultbase --topk 100 --upr #--wbits 4 #--batch_size 128 
+python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-batchsize1-upr --topk 100 --upr #--wbits 4 #--batch_size 128 
 
 
