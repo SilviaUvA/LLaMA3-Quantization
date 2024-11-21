@@ -3,3 +3,5 @@ __pycache__
 *.out
 /log
 huggingface_access_token.txt
+/datasets
+/elasticsearch-7.9.1
