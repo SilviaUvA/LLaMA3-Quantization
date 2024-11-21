@@ -113,6 +113,8 @@ class IRQLoRALMClass(BaseLM):
         return self.tokenizer(
             strings,
             padding=True,
+            # padding='max_length', #TODO added by me bcs now getting shape errors with beir :(
+            # max_length=4096, #TODO added by me bcs now getting shape errors with beir :(
             add_special_tokens=False,
             return_tensors="pt",
         )

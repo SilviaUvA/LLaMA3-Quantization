@@ -20,6 +20,7 @@ dependencies:
     - async-timeout==4.0.3
     - attrs==24.2.0
     - auto-gptq==0.7.1
+    - beir
     - bitsandbytes==0.44.1
     - certifi==2024.8.30
     - chardet==5.2.0
@@ -94,12 +95,12 @@ dependencies:
     - termcolor==2.5.0
     - texttable==1.7.0
     - threadpoolctl==3.5.0
-    - tokenizers==0.20.1
+    - tokenizers
     - tomli==2.0.2
     - torch==2.1.0
     - tqdm==4.66.6
-    - transformers==4.46.1
-    - triton #==3.1.0
+    - transformers==4.37.2
+    - triton
     - typepy==1.3.2
     - typing-extensions==4.12.2
     - urllib3==2.2.3
