@@ -1,7 +1,7 @@
 import transformers
 import torch
 from .models_utils import BaseLM, find_layers
-from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, LlamaForCausalLM
 import torch.nn.functional as F
 from torch import nn
 import torch
@@ -15,7 +15,8 @@ class LMClass(BaseLM):
         super().__init__()
 
         self.args = args
-        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
         self.model_name = args.model
         self.batch_size_per_gpu = args.batch_size
 
@@ -24,9 +25,21 @@ class LMClass(BaseLM):
             args.model, attn_implementation=args.attn_implementation
         )
 
-        self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False,legacy=False)
-        # self.model = AutoModelForCausalLM.from_pretrained(args.model, config=config, device_map='cpu',torch_dtype=config.torch_dtype)
-        self.model = AutoModelForCausalLM.from_pretrained(args.model, config=config, device_map='cpu',torch_dtype=torch.float16)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            args.model, use_fast=False, legacy=False)
+
+        model_class = None
+
+        if args.model_type == "LlamaForCausalLM":
+            model_class = LlamaForCausalLM
+        elif args.model_type == "AutoModelForCausalLM":
+            model_class = AutoModelForCausalLM
+        else:
+            raise Exception(f"Model type {args.model_type} not known")
+
+        self.model = model_class.from_pretrained(
+            args.model, config=config, device_map='cpu', torch_dtype=torch.float16)
+
         self.seqlen = self.model.config.max_position_embeddings
         self.model.eval()
         self.vocab_size = self.tokenizer.vocab_size

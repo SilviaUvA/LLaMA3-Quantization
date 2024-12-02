@@ -27,6 +27,9 @@ llama3_70b="meta-llama/Meta-Llama-3-70B"  # Llama 3 70B
 llava_next_8b="lmms-lab/llama3-llava-next-8b" # Llava Next 8B
 model=${llama3_8b}
 
+gptq_custom_4bit="../GPTQ-for-LLaMa/llama8b-4bit-128g"
+gptq_custom_2bit="../GPTQ-for-LLaMa/llama8b-2bit-128g"
+
 gptq="LLaMA-3-8B-GPTQ-4bit-b128" # GPTQ
 awq="LLaMA-3-8B-AWQ-4bit-b128" # AWQ
 quip="LLaMA-3-8B-QuIP-2bit" # QuIP
@@ -46,6 +49,11 @@ irqlora="LLaMA-3-8B-IR-QLoRA" # IR-QLoRA
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 tasks=${tasks_commonsenseQA}
 
+# Evaluating GPTQ model from running code from GPTQ-for-LLaMa repo
+ python3 main.py --model ${gptq_custom_4bit} --quant_method gptq --eval_ppl --epochs 0 --output_dir ./log/gptq --wbits 4  --lwc --net "llama-7b" --group_size 128 --model_type LlamaForCausalLM
+
+# Evaluating IR-QLoRA
 # python3 main.py --model ${model} --peft "Efficient-ML/"${irqlora} --quant_method irqlora --tau_range 0.1 --tau_n 100 --blocksize2 256 --epochs 0 --output_dir ./log/${irqlora} --wbits ${wbits} --abits ${wbits} --tasks ${tasks}
 
-python3 main.py --model "Efficient-ML/"${quantization_model} --quant_method gptq --eval_ppl --epochs 10 --output_dir ./log/${quantization_model} --wbits ${wbits}  --abits ${wbits} --lwc --net "llama-7b"
+# Quantization with 1 epoch with model from Efficient-ML's huggingface
+# python3 main.py --model "Efficient-ML/"${quantization_model} --quant_method gptq --eval_ppl --epochs 1 --output_dir ./log/${quantization_model} --wbits 8 --lwc --net "llama-7b" --group_size 128
