@@ -21,18 +21,11 @@ pip install transformers==4.37.2
 conda activate llama
 pip install protobuf==3.20.2
 
-wbits=4
-
-
-llama2_7b="meta-llama/Llama-2-7b-hf"  # Llama 2 7B
 
 llama3_8b="meta-llama/Meta-Llama-3-8B"  # Llama 3 8B
 llama3_70b="meta-llama/Meta-Llama-3-70B"  # Llama 3 70B
 llava_next_8b="lmms-lab/llama3-llava-next-8b" # Llava Next 8B
 model=${llama3_8b}
-
-gptq_custom_4bit="../GPTQ-for-LLaMa/llama8b-4bit-128g"
-gptq_custom_2bit="../GPTQ-for-LLaMa/llama8b-2bit-128g"
 
 gptq="LLaMA-3-8B-GPTQ-4bit-b128" # GPTQ
 awq="LLaMA-3-8B-AWQ-4bit-b128" # AWQ
@@ -45,23 +38,7 @@ smoothquant8="LLaMA-3-8B-SmoothQuant-8bit-8bit" # SmoothQuant 8bit
 
 quantization_model=${awq}
 
-gptq70B="LLaMA-3-70B-GPTQ-4bit-b128" # GPTQ for LLama 3 70B
-
-irqlora="LLaMA-3-8B-IR-QLoRA" # IR-QLoRA
-
-
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
-tasks=${tasks_commonsenseQA}
-
-# LLaMa 2
-python3 main.py --model ${llama2_7b} --quant_method gptq --eval_ppl --epochs 1 --output_dir ./log/${llama2_7b} --wbits 4 --lwc --net "llama-7b" --group_size 128  --model_type LlamaForCausalLM --tokenizer_class LlamaTokenizer
-
-
-# Evaluating GPTQ model from running code from GPTQ-for-LLaMa repo
-#  python3 main.py --model ${gptq_custom_4bit} --quant_method gptq --eval_ppl --epochs 0 --output_dir ./log/gptq --wbits 4  --lwc --net "llama-7b" --group_size 128 --model_type LlamaForCausalLM
-
-# Evaluating IR-QLoRA
-# python3 main.py --model ${model} --peft "Efficient-ML/"${irqlora} --quant_method irqlora --tau_range 0.1 --tau_n 100 --blocksize2 256 --epochs 0 --output_dir ./log/${irqlora} --wbits ${wbits} --abits ${wbits} --tasks ${tasks}
 
 # Quantization with 1 epoch with model from Efficient-ML's huggingface
-# python3 main.py --model "Efficient-ML/"${quantization_model} --quant_method gptq --eval_ppl --epochs 1 --output_dir ./log/${quantization_model} --wbits 8 --lwc --net "llama-7b" --group_size 128
+python3 main.py --model "Efficient-ML/"${quantization_model} --quant_method gptq  --wbits 4 --eval_ppl --epochs 1 --output_dir ./log/${quantization_model} --lwc --net "llama-7b" --group_size 128 --tasks ${tasks_commonsenseQA}
