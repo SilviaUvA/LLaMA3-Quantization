@@ -30,7 +30,7 @@ class LMClass(BaseLM):
         if args.tokenizer_class == "LlamaTokenizer":
             tokenizer_class = LlamaTokenizer
         elif args.tokenizer_class == "AutoTokenizer":
-            model_class = AutoTokenizer
+            tokenizer_class = AutoTokenizer
         else:
             raise Exception(
                 f"Tokenizer class {args.tokenizer_class} not known")
