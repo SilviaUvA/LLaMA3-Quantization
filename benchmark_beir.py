@@ -104,7 +104,7 @@ def load_model(args):
     else:
         lm = LMClass(args)
 
-    lm.seqlen = 2048
+    lm.seqlen = args.seqlen
     lm.model.eval()
     for param in lm.model.parameters():
         param.requires_grad = False
@@ -273,63 +273,63 @@ class QLlamaDEModel:
         # Batch size x embedding dim (B, 4096)
         return all_docs
 
-class QLlamaCEModel:
-    def __init__(self, args):   
-        self.model, self.logger = load_model(args) # ---> HERE Load your custom model
-        self.args = args
-        self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
+# class QLlamaCEModel:
+#     def __init__(self, args):   
+#         self.model, self.logger = load_model(args) # ---> HERE Load your custom model
+#         self.args = args
+#         self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
     
-    # Write your own score function, which takes in query-document text pairs and returns the similarity scores
-    def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwargs) -> List[float]:
-        # return only the list of float scores
-        ppls = []
+#     # Write your own score function, which takes in query-document text pairs and returns the similarity scores
+#     def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwargs) -> List[float]:
+#         # return only the list of float scores
+#         ppls = []
 
-        for i in range(0, len(sentences), batch_size):
-            batch_sentences = sentences[i:i + batch_size]
-            batch_query_docs = [f"{q}\n\n{doc}" for q, doc in batch_sentences]
-            loaded = self.model.tok_encode_batch(batch_query_docs) #dict object, with key input_ids (padded) and attention_mask
-            testenc = loaded["input_ids"].to(self.model.device)
-            # test_attn_mask = loaded["attention_mask"].to(self.model.device)
+#         for i in range(0, len(sentences), batch_size):
+#             batch_sentences = sentences[i:i + batch_size]
+#             batch_query_docs = [f"{q}\n\n{doc}" for q, doc in batch_sentences]
+#             loaded = self.model.tok_encode_batch(batch_query_docs) #dict object, with key input_ids (padded) and attention_mask
+#             testenc = loaded["input_ids"].to(self.model.device)
+#             # test_attn_mask = loaded["attention_mask"].to(self.model.device)
 
-            nsamples = testenc.numel() // self.model.seqlen
-            if nsamples == 0:
-                nsamples += 1
+#             nsamples = testenc.numel() // self.model.seqlen
+#             if nsamples == 0:
+#                 nsamples += 1
 
-            use_cache = self.model.model.config.use_cache
-            self.model.model.config.use_cache = False
-            self.model.model.eval()
-            nlls = []
-            for j in tqdm(range(nsamples)):
-                batch = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)].to(self.model.device)
+#             use_cache = self.model.model.config.use_cache
+#             self.model.model.config.use_cache = False
+#             self.model.model.eval()
+#             nlls = []
+#             for j in tqdm(range(nsamples)):
+#                 batch = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)].to(self.model.device)
 
-                with torch.no_grad():
-                    if "opt" in self.args.net.lower():
-                        outputs = self.model.model.model.decoder(batch)
-                    elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
-                        outputs = self.model.model.model(batch)
-                    elif "falcon" in self.args.model:
-                        outputs = self.model.model.transformer(batch)
+#                 with torch.no_grad():
+#                     if "opt" in self.args.net.lower():
+#                         outputs = self.model.model.model.decoder(batch)
+#                     elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
+#                         outputs = self.model.model.model(batch)
+#                     elif "falcon" in self.args.model:
+#                         outputs = self.model.model.transformer(batch)
 
-                hidden_states = outputs[0]
-                logits = self.model.model.lm_head(hidden_states)
-                shift_logits = logits[:, :-1, :]
-                shift_labels = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)][
-                    :, 1:
-                ].to(self.model.model.lm_head.weight.device)
-                loss_fct = nn.CrossEntropyLoss()
-                loss = loss_fct(
-                    shift_logits.view(-1, shift_logits.size(-1)),
-                    shift_labels.view(-1),
-                )
-                neg_log_likelihood = loss.float() * self.model.seqlen
-                nlls.append(neg_log_likelihood)
-                if j == self.args.limit:
-                    break
+#                 hidden_states = outputs[0]
+#                 logits = self.model.model.lm_head(hidden_states)
+#                 shift_logits = logits[:, :-1, :]
+#                 shift_labels = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)][
+#                     :, 1:
+#                 ].to(self.model.model.lm_head.weight.device)
+#                 loss_fct = nn.CrossEntropyLoss()
+#                 loss = loss_fct(
+#                     shift_logits.view(-1, shift_logits.size(-1)),
+#                     shift_labels.view(-1),
+#                 )
+#                 neg_log_likelihood = loss.float() * self.model.seqlen
+#                 nlls.append(neg_log_likelihood)
+#                 if j == self.args.limit:
+#                     break
     
-            ppl = -torch.exp(torch.stack(nlls).sum() / (nsamples * self.model.seqlen)) # - because it picks the highest scores
-            self.model.model.config.use_cache = use_cache
-            ppls.append(ppl.item())
-        return ppls
+#             ppl = -torch.exp(torch.stack(nlls).sum() / (nsamples * self.model.seqlen)) # - because it picks the highest scores
+#             self.model.model.config.use_cache = use_cache
+#             ppls.append(ppl.item())
+#         return ppls
 
 
 class QLlamaUPRModel:
@@ -338,7 +338,6 @@ class QLlamaUPRModel:
         self.args = args
         self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
         self.kwargs = kwargs
-        self.epsilon = 0.001
     
     # Write your own score function, which takes in query-document text pairs and returns the similarity scores
     def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwargs) -> List[float]:
@@ -365,23 +364,28 @@ class QLlamaUPRModel:
             # mask context out for loss calc
             labels = combi_input_ids.clone()
             labels[:, :context_input_ids.shape[1]] = -100 
+            labels = labels
+
+            # if combi_input_ids.shape[1] > self.model.seqlen:
+            #     combi_input_ids = combi_input_ids[:, -self.model.seqlen:] 
+            #     combi_attn_mask = combi_attn_mask[:, -self.model.seqlen:] 
+            #     labels = labels[:, -self.model.seqlen:]
 
             self.model.model.config.use_cache = False
             self.model.model.eval()
+            self.model.model = self.model.model.to(self.model.device)
 
             with torch.no_grad():
-                if "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
-                    outputs = self.model.model(input_ids=combi_input_ids, attention_mask=combi_attn_mask, labels=labels)
-                else:
-                    raise NotImplementedError
+                outputs = self.model.model(input_ids=combi_input_ids, attention_mask=combi_attn_mask, labels=labels)
+                # logits = self.model.model(input_ids=combi_input_ids, attention_mask=combi_attn_mask, labels=labels).logits
+
+            # log_softmax = torch.nn.functional.log_softmax(logits, dim=-1)
+            # nll = -log_softmax.gather(2, tar_input_ids.unsqueeze(2)).squeeze(2)
+            # nlls.append(torch.sum(nll, dim=1).item())
+            # print(log_softmax, nll)
             loss = outputs.loss
             nlls.append(-loss.item())
-            # nlls.append(loss.item())
-
-        # nlls_array = np.array(nlls)
-        # max_nll = np.max(nlls_array)
-        # nlls_array = max_nll - nlls_array + self.epsilon
-        # return nlls_array.tolist()
+        # print("SCORES: ", nlls)
         return nlls
 
 
@@ -439,13 +443,14 @@ def main():
     parser.add_argument("--tau_n", type=int, default=100)
     parser.add_argument("--blocksize2", type=int, default=256)
 
-    parser.add_argument("--ce", action="store_true", help="Rerank with crossencoder")
+    # parser.add_argument("--ce", action="store_true", help="Rerank with crossencoder")
     parser.add_argument("--be", action="store_true", help="Rerank with biencoder")
     parser.add_argument("--upr", action="store_true", help="Rerank with UPR crossencoder")
     parser.add_argument("--beirdata", type=str, default="scifact", choices=["scifact", "msmarco", "trec-covid", "nfcorpus", "nq", "hotpotqa", "fiqa", "arguana", "webis-touche2020", "cqadupstack", "quora", "dbpedia-entity", "scidocs", "fever", "climate-fever"])
     parser.add_argument("--header", type=str, default="Passage:", help="Text preprended to document for UPR prompt")
-    parser.add_argument("--instruction", type=str, default="Please write a question based on this passage.", help="Instruction text appended to document for UPR prompt, depends on --beirdata task")
+    parser.add_argument("--instruction", type=str, default="Please write a question based on this passage.", help="Instruction text appended to document for UPR prompt")
     parser.add_argument("--topk", type=int, default=100, help="# documents to rerank")
+    parser.add_argument("--seqlen", type=int, default=2048, help="Sequence length of model")
 
     args = parser.parse_args()
     set_seed(args.seed)
@@ -488,7 +493,8 @@ def main():
     #### Sharding ####
     # (1) For datasets with small corpus (datasets ~ < 5k docs) => limit shards = 1 
     # SciFact is a relatively small dataset! (limit shards to 1)
-    number_of_shards = 1
+    # number_of_shards = 1
+    number_of_shards = 50
     model = BM25(index_name=index_name, hostname=hostname, initialize=initialize, number_of_shards=number_of_shards)
 
     # (2) For datasets with big corpus ==> keep default configuration
@@ -501,13 +507,13 @@ def main():
     #### (2) RERANK Top-100 docs using Cross-Encoder
     ################################################
     #### Reranking using Cross-Encoder models #####
-    if args.ce:
-        reranker = Rerank(QLlamaCEModel(args), batch_size=args.batch_size)
-        # Rerank top-100 results using the reranker provided
-        rerank_results = reranker.rerank(corpus, queries, results, top_k=args.topk)
-        #### Evaluate your retrieval using NDCG@k, MAP@K ...
-        ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
-        logging.info(f"CE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
+    # if args.ce:
+    #     reranker = Rerank(QLlamaCEModel(args), batch_size=args.batch_size)
+    #     # Rerank top-100 results using the reranker provided
+    #     rerank_results = reranker.rerank(corpus, queries, results, top_k=args.topk)
+    #     #### Evaluate your retrieval using NDCG@k, MAP@K ...
+    #     ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
+    #     logging.info(f"CE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
     
     if args.upr:
         reranker = Rerank(QLlamaUPRModel(args, header=args.header, instruction=args.instruction), batch_size=args.batch_size)
