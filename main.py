@@ -119,9 +119,7 @@ def evaluate(lm, args, logger):
             else:
                 testenc = testloader.input_ids
 
-            print("TESTENC SHAPE: ", testenc.shape)  # TODO
             nsamples = testenc.numel() // lm.seqlen
-            print("NSAMPLES: ", nsamples)
             use_cache = lm.model.config.use_cache
             lm.model.config.use_cache = False
             lm.model.eval()
@@ -129,20 +127,17 @@ def evaluate(lm, args, logger):
             for i in tqdm(range(nsamples)):
                 batch = testenc[:, (i * lm.seqlen)
                                     : ((i + 1) * lm.seqlen)].to(lm.device)
-                print("BATCH SHAPE: ", batch.shape)  # TODO
+
                 if "opt" in args.net.lower():
                     outputs = lm.model.model.decoder(batch)
                 elif "llama" in args.net.lower() or "mixtral" in args.net.lower():
                     outputs = lm.model.model(batch)
                 elif "falcon" in args.model:
                     outputs = lm.model.transformer(batch)
-                print("OUTPUTS SHAPE: ", outputs)  # TODO
                 hidden_states = outputs[0]
-                print("HIDDEN STATES SHAPE? ",
-                      hidden_states.shape, hidden_states)
-                print("EH: ", lm.model.lm_head)
+
                 logits = lm.model.lm_head(hidden_states)
-                print("LOGITS: ", logits.shape, logits)
+
                 shift_logits = logits[:, :-1, :]
                 shift_labels = testenc[:, (i * lm.seqlen): ((i + 1) * lm.seqlen)][
                     :, 1:
