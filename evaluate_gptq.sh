@@ -25,8 +25,8 @@ pip install protobuf==3.20.2
 
 
 
-gptq_custom_4bit="../GPTQ-for-LLaMa/llama8b-4bit-128g"
-gptq_custom_2bit="../GPTQ-for-LLaMa/llama8b-2bit-128g"
+gptq_custom_4bit="../GPTQ-for-LLaMa/llama-3-8b-4bit-128g"
+gptq_custom_2bit="../GPTQ-for-LLaMa/llama-3-8b-2bit-128g"
 
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 
