@@ -1,7 +1,7 @@
 import transformers
 import torch
 from .models_utils import BaseLM, find_layers
-from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, LlamaForCausalLM
+from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, LlamaForCausalLM, LlamaTokenizer
 import torch.nn.functional as F
 from torch import nn
 import torch
@@ -25,7 +25,11 @@ class LMClass(BaseLM):
             args.model, attn_implementation=args.attn_implementation
         )
 
-        self.tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer_class = (AutoTokenizer
+                           if ("llama-3" in args.model.lower() or "llama3" in args.model.lower())
+                           else LlamaTokenizer)
+
+        self.tokenizer = tokenizer_class.from_pretrained(
             args.model, use_fast=False, legacy=False)
 
         model_class = None
