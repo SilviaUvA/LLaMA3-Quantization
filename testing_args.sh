@@ -54,11 +54,11 @@ tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 tasks=${tasks_commonsenseQA}
 
 # LLaMa 2
-python3 main.py --model ${llama2_7b} --quant_method gptq --eval_ppl --epochs 1 --output_dir ./log/${llama2_7b} --wbits 4 --lwc --net "llama-7b" --group_size 128
+python3 main.py --model ${llama2_7b} --quant_method gptq --eval_ppl --epochs 1 --output_dir ./log/${llama2_7b} --wbits 4 --lwc --net "llama-7b" --group_size 128  --model_type LlamaForCausalLM
 
 
 # Evaluating GPTQ model from running code from GPTQ-for-LLaMa repo
- python3 main.py --model ${gptq_custom_4bit} --quant_method gptq --eval_ppl --epochs 0 --output_dir ./log/gptq --wbits 4  --lwc --net "llama-7b" --group_size 128 --model_type LlamaForCausalLM
+#  python3 main.py --model ${gptq_custom_4bit} --quant_method gptq --eval_ppl --epochs 0 --output_dir ./log/gptq --wbits 4  --lwc --net "llama-7b" --group_size 128 --model_type LlamaForCausalLM
 
 # Evaluating IR-QLoRA
 # python3 main.py --model ${model} --peft "Efficient-ML/"${irqlora} --quant_method irqlora --tau_range 0.1 --tau_n 100 --blocksize2 256 --epochs 0 --output_dir ./log/${irqlora} --wbits ${wbits} --abits ${wbits} --tasks ${tasks}

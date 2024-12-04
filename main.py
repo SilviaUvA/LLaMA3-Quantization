@@ -270,7 +270,7 @@ def main():
     )
     parser.add_argument("--net", type=str, default=None, choices=net_choices)
     parser.add_argument("--model_type", type=str,
-                        choices=["LlamaorCausalLM", "AutoModelForCausalLM"],
+                        choices=["LlamaForCausalLM", "AutoModelForCausalLM"],
                         default="AutoModelForCausalLM")
     parser.add_argument("--act-scales", type=str, default=None)
     parser.add_argument("--act-shifts", type=str, default=None)
