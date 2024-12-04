@@ -29,4 +29,4 @@ llama2_7b="meta-llama/Llama-2-7b-hf"  # Llama 2 7B
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 
 # LLaMa 2
-python3 main.py --model ${llama2_7b} --quant_method gptq --eval_ppl --epochs 1 --output_dir ./log/${llama2_7b} --wbits 4 --lwc --net "llama-7b" --group_size 128  --model_type LlamaForCausalLM --tokenizer_class LlamaTokenizer --tasks ${tasks_commonsenseQA}
+python3 main.py --model ${llama2_7b} --quant_method gptq --eval_ppl --epochs 1 --output_dir ./log/${llama2_7b} --wbits 4 --lwc --net "llama-7b" --group_size 128  --tasks ${tasks_commonsenseQA}
