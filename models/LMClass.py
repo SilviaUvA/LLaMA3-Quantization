@@ -25,10 +25,15 @@ class LMClass(BaseLM):
             args.model, attn_implementation=args.attn_implementation
         )
 
-        is_llama_2 = "llama-2" in args.model.lower() or \
-            "llama2" in args.model.lower()
+        tokenizer_class = None
 
-        tokenizer_class = LlamaTokenizer if is_llama_2 else AutoTokenizer
+        if args.tokenizer_class == "LlamaTokenizer":
+            tokenizer_class = LlamaTokenizer
+        elif args.tokenizer_class == "AutoTokenizer":
+            model_class = AutoTokenizer
+        else:
+            raise Exception(
+                f"Tokenizer class {args.tokenizer_class} not known")
 
         self.tokenizer = tokenizer_class.from_pretrained(
             args.model, use_fast=False, legacy=False)
