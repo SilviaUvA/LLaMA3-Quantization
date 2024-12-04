@@ -2,12 +2,12 @@
 
 #SBATCH --partition=gpu
 #SBATCH --gpus=1
-#SBATCH --job-name=testing_args
+#SBATCH --job-name=eval_q_model
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
 #SBATCH --time=04:00:00
-#SBATCH --output=args_testing_output_%A.out
-#SBATCH --error=args_testing_error_%A.out
+#SBATCH --output=eval_q_model_output_%A.out
+#SBATCH --error=eval_q_model_error_%A.out
 
 module purge
 module load 2022
@@ -16,9 +16,11 @@ module load cuDNN/8.6.0.163-CUDA-11.8.0
 
 source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
+
+conda activate llama
+
 pip uninstall transformers
 pip install transformers==4.37.2
-conda activate llama
 pip install protobuf==3.20.2
 
 
