@@ -32,4 +32,4 @@ tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 
 
 # Evaluating GPTQ model from running code from GPTQ-for-LLaMa repo
- python3 main.py --model ${gptq_custom_4bit} --quant_method gptq --eval_ppl --epochs 0 --output_dir ./log/gptq --wbits 4  --lwc --net "llama-7b" --group_size 128 --model_type LlamaForCausalLM --tasks ${tasks_commonsenseQA}
+ python3 main.py --model ${gptq_custom_4bit} --quant_method gptq --eval_ppl --epochs 0 --output_dir ./log/gptq --wbits 4  --lwc --net "llama-7b" --group_size 128 --tasks ${tasks_commonsenseQA}
