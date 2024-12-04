@@ -269,12 +269,6 @@ def main():
         help="attention implementation that the model works with",
     )
     parser.add_argument("--net", type=str, default=None, choices=net_choices)
-    parser.add_argument("--model_type", type=str,
-                        choices=["LlamaForCausalLM", "AutoModelForCausalLM"],
-                        default="AutoModelForCausalLM")
-    parser.add_argument("--tokenizer_class", type=str,
-                        choices=["LlamaTokenizer", "AutoTokenizer"],
-                        default="AutoTokenizer")
     parser.add_argument("--act-scales", type=str, default=None)
     parser.add_argument("--act-shifts", type=str, default=None)
 

@@ -1,7 +1,7 @@
 import transformers
 import torch
 from .models_utils import BaseLM, find_layers
-from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, LlamaForCausalLM, LlamaTokenizer
+from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
 import torch.nn.functional as F
 from torch import nn
 import torch
@@ -25,29 +25,10 @@ class LMClass(BaseLM):
             args.model, attn_implementation=args.attn_implementation
         )
 
-        tokenizer_class = None
-
-        if args.tokenizer_class == "LlamaTokenizer":
-            tokenizer_class = LlamaTokenizer
-        elif args.tokenizer_class == "AutoTokenizer":
-            tokenizer_class = AutoTokenizer
-        else:
-            raise Exception(
-                f"Tokenizer class {args.tokenizer_class} not known")
-
-        self.tokenizer = tokenizer_class.from_pretrained(
+        self.tokenizer = AutoTokenizer.from_pretrained(
             args.model, use_fast=False, legacy=False)
 
-        model_class = None
-
-        if args.model_type == "LlamaForCausalLM":
-            model_class = LlamaForCausalLM
-        elif args.model_type == "AutoModelForCausalLM":
-            model_class = AutoModelForCausalLM
-        else:
-            raise Exception(f"Model type {args.model_type} not known")
-
-        self.model = model_class.from_pretrained(
+        self.model = AutoModelForCausalLM.from_pretrained(
             args.model, config=config, device_map='cpu', torch_dtype=torch.float16)
 
         self.seqlen = self.model.config.max_position_embeddings
