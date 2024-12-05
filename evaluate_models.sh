@@ -42,5 +42,13 @@ quantization_model=${awq}
 
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 
-# Quantization with 1 epoch with model from Efficient-ML's huggingface
-python3 main.py --model "Efficient-ML/"${quantization_model} --quant_method gptq  --wbits 4 --eval_ppl --epochs 1 --output_dir ./log/${quantization_model} --lwc --net "llama-7b" --group_size 128 --tasks ${tasks_commonsenseQA}
+# Evaluate with quantized model from Efficient-ML's huggingface
+
+# AWQ
+python3 main.py --model "Efficient-ML/"${awq} --quant_method awq  --wbits 4 --eval_ppl --output_dir ./log/${awq} --lwc --net "llama-7b" --group_size 128 --tasks ${tasks_commonsenseQA}
+
+# SmoothQuant 4-bit
+python3 main.py --model "Efficient-ML/"${smoothquant4} --quant_method smoothquant4  --wbits 4 --eval_ppl --output_dir ./log/${smoothquant4} --lwc --net "llama-7b" --group_size 128 --tasks ${tasks_commonsenseQA}
+
+# SmoothQuant 8-bit
+python3 main.py --model "Efficient-ML/"${smoothquant8} --quant_method smoothquant8  --wbits 8 --eval_ppl --output_dir ./log/${smoothquant8} --lwc --net "llama-7b" --group_size 128 --tasks ${tasks_commonsenseQA}

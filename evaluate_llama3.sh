@@ -32,4 +32,4 @@ model=${llama3_8b}
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 
 # Evaluate original Llama 3 model
-python3 main.py --model ${model} --quant_method gptq  --wbits 4 --eval_ppl --epochs 1 --output_dir ./log/${model} --lwc --net "llama-7b" --group_size 128 --tasks ${tasks_commonsenseQA}
+python3 main.py --model ${model} --quant_method none  --wbits 4 --eval_ppl --output_dir ./log/${model} --lwc --net "llama-7b" --group_size 128 --tasks ${tasks_commonsenseQA}
