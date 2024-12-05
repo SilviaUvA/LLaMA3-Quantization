@@ -1,13 +1,14 @@
 import transformers
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 import torch
 from .models_utils import BaseLM, find_layers
-from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, LlamaForCausalLM, LlamaTokenizer
+from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, LlamaForCausalLM, LlamaTokenizer, AutoModelForSeq2SeqLM
 import torch.nn.functional as F
 from torch import nn
 import torch
 from tqdm import tqdm
 import pdb
-
+from hqq.models.hf.base import AutoHQQHFModel
 
 class LMClass(BaseLM):
     def __init__(self, args):
@@ -25,32 +26,19 @@ class LMClass(BaseLM):
             args.model, attn_implementation=args.attn_implementation
         )
 
-        tokenizer_class = None
-
-        if args.tokenizer_class == "LlamaTokenizer":
-            tokenizer_class = LlamaTokenizer
-        elif args.tokenizer_class == "AutoTokenizer":
-            tokenizer_class = AutoTokenizer
+        self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False,legacy=False)
+        if args.quant_method == "hqq":
+            self.model = AutoHQQHFModel.from_quantized(args.model)
+            self.seqlen = self.model.config.max_position_embeddings
+        elif args.model.split("/")[1] == "T0_3B":
+            # self.model = AutoModelForSeq2SeqLM.from_pretrained(args.model)
+            self.model = T5ForConditionalGeneration.from_pretrained(args.model)
+            self.tokenizer = T5Tokenizer.from_pretrained(args.model)
+            self.seqlen = self.model.config.d_model
         else:
-            raise Exception(
-                f"Tokenizer class {args.tokenizer_class} not known")
+            self.model = AutoModelForCausalLM.from_pretrained(args.model, config=config, device_map='cpu',torch_dtype=torch.float16)
+            self.seqlen = self.model.config.max_position_embeddings
 
-        self.tokenizer = tokenizer_class.from_pretrained(
-            args.model, use_fast=False, legacy=False)
-
-        model_class = None
-
-        if args.model_type == "LlamaForCausalLM":
-            model_class = LlamaForCausalLM
-        elif args.model_type == "AutoModelForCausalLM":
-            model_class = AutoModelForCausalLM
-        else:
-            raise Exception(f"Model type {args.model_type} not known")
-
-        self.model = model_class.from_pretrained(
-            args.model, config=config, device_map='cpu', torch_dtype=torch.float16)
-
-        self.seqlen = self.model.config.max_position_embeddings
         self.model.eval()
         self.vocab_size = self.tokenizer.vocab_size
         print("vocab size: ", self.vocab_size)

@@ -5,3 +5,6 @@ __pycache__
 huggingface_access_token.txt
 /datasets
 /elasticsearch-7.9.1
+quantized*
+*.json
+*.txt

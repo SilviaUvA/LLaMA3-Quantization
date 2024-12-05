@@ -1,8 +1,21 @@
 import os
-import pathlib
 import logging
 import torch
+import torch.nn as nn
 import sys
+import time
+import mteb
+from mteb import MTEB
+from pathlib import Path
+import utils
+from models.LMClass import LMClass
+from models.IRQLoRALMClass import IRQLoRALMClass
+import random
+import numpy as np
+from tqdm import tqdm
+from quant.omniquant import omniquant
+from parallel_utils import map_layers_to_multi_gpus, get_lowest_occupied_gpu
+from datautils import get_loaders
 from typing import List, Dict, Tuple
 
 from beir import util, LoggingHandler
@@ -11,38 +24,6 @@ from beir.retrieval.evaluation import EvaluateRetrieval
 from beir.retrieval.search.lexical import BM25Search as BM25
 from beir.reranking import Rerank
 from beir.retrieval.search.dense import DenseRetrievalExactSearch as DRES
-
-import random
-import numpy as np
-from models.LMClass import LMClass
-from models.IRQLoRALMClass import IRQLoRALMClass
-import time
-from datautils import get_loaders
-from lm_eval import evaluator
-from pprint import pprint
-from parallel_utils import map_layers_to_multi_gpus, get_lowest_occupied_gpu
-import torch.nn as nn
-from quant.omniquant import omniquant
-from tqdm import tqdm
-import utils
-from pathlib import Path
-from categories import subcategories, categories
-
-from models.int_llama_layer import QuantLlamaDecoderLayer
-from models.int_opt_layer import QuantOPTDecoderLayer
-from quant.int_linear import QuantLinear
-
-import pdb
-
-from huggingface_hub import login
-
-with open("huggingface_access_token.txt") as f:
-    access_token = f.readline().strip()
-
-login(token=access_token)
-
-torch.backends.cudnn.benchmark = True
-print("Using device: ", torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 
 net_choices = [
     "opt-125m",
@@ -67,13 +48,83 @@ net_choices = [
     "mixtral-8x7b"
 ]
 
-
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
 
+# class STSEvalModel:
+#     def __init__(self, model):
+#         self.model = model
+#         self.device = model.device if hasattr(model, 'device') else 'cuda'
+        
+#     def encode(self, sentences, batch_size=32, **kwargs):
+#         """Encode sentences into embeddings"""
+#         self.model.eval()
+#         embeddings = []
+        
+#         with torch.no_grad():
+#             for i in tqdm(range(0, len(sentences), batch_size)):
+#                 batch = sentences[i:i + batch_size]
+                
+#                 # Get model outputs
+#                 outputs = self.model(batch)
+                
+#                 # Use last hidden state as sentence embedding
+#                 # Adjust this based on your model's output format
+#                 if isinstance(outputs, torch.Tensor):
+#                     last_hidden = outputs
+#                 else:
+#                     last_hidden = outputs.last_hidden_state
+                
+#                 # Mean pooling over sequence length
+#                 sentence_embeddings = torch.mean(last_hidden, dim=1)
+                
+#                 embeddings.append(sentence_embeddings.cpu())
+                
+#         return torch.cat(embeddings, dim=0).numpy()
+
+class STSEvalModel:
+    def __init__(self, model):
+        self.model = model
+        self.device = model.device if hasattr(model, 'device') else 'cuda'
+        # Set padding token to be the same as EOS token
+        self.model.tokenizer.pad_token = self.model.tokenizer.eos_token
+        
+    def encode(self, sentences, batch_size=32, **kwargs):
+        """Encode sentences into embeddings"""
+        # The model is already set to eval mode in LMClass.__init__
+        embeddings = []
+        
+        with torch.no_grad():
+            for i in tqdm(range(0, len(sentences), batch_size)):
+                batch = sentences[i:i + batch_size]
+                
+                # Get model outputs using the model's tokenizer and forward pass
+                encoded = self.model.tok_encode_batch(batch)
+                input_ids = encoded["input_ids"].to(self.model.device)
+                attention_mask = encoded["attention_mask"].to(self.model.device)
+                
+                if "llama" in self.model.args.net.lower() or "mixtral" in self.model.args.net.lower():
+                    outputs = self.model.model.model(input_ids, attention_mask=attention_mask)
+                elif "opt" in self.model.args.net.lower():
+                    outputs = self.model.model.model.decoder(input_ids, attention_mask=attention_mask)
+                elif "falcon" in self.model.args.model:
+                    outputs = self.model.model.transformer(input_ids, attention_mask=attention_mask)
+                else:
+                    raise NotImplementedError(f"Model type {self.model.model_name} not supported")
+                
+                # Use last hidden state
+                last_hidden = outputs[0]
+                
+                # Mean pooling over sequence length (using attention mask)
+                mask = attention_mask.unsqueeze(-1).expand(last_hidden.size()).float()
+                sentence_embeddings = torch.sum(last_hidden * mask, 1) / torch.clamp(mask.sum(1), min=1e-9)
+                
+                embeddings.append(sentence_embeddings.cpu())
+                
+        return torch.cat(embeddings, dim=0).numpy()
 
 def load_model(args):
     # check
@@ -104,7 +155,7 @@ def load_model(args):
     else:
         lm = LMClass(args)
 
-    lm.seqlen = args.seqlen
+    lm.seqlen = 2048
     lm.model.eval()
     for param in lm.model.parameters():
         param.requires_grad = False
@@ -199,7 +250,6 @@ def load_model(args):
 
     return lm, logger
 
-
 class QLlamaDEModel:
     def __init__(self, args):
         self.model, self.logger = load_model(args) # ---> HERE Load your custom model
@@ -273,63 +323,63 @@ class QLlamaDEModel:
         # Batch size x embedding dim (B, 4096)
         return all_docs
 
-# class QLlamaCEModel:
-#     def __init__(self, args):   
-#         self.model, self.logger = load_model(args) # ---> HERE Load your custom model
-#         self.args = args
-#         self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
+class QLlamaCEModel:
+    def __init__(self, args):   
+        self.model, self.logger = load_model(args) # ---> HERE Load your custom model
+        self.args = args
+        self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
     
-#     # Write your own score function, which takes in query-document text pairs and returns the similarity scores
-#     def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwargs) -> List[float]:
-#         # return only the list of float scores
-#         ppls = []
+    # Write your own score function, which takes in query-document text pairs and returns the similarity scores
+    def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwargs) -> List[float]:
+        # return only the list of float scores
+        ppls = []
 
-#         for i in range(0, len(sentences), batch_size):
-#             batch_sentences = sentences[i:i + batch_size]
-#             batch_query_docs = [f"{q}\n\n{doc}" for q, doc in batch_sentences]
-#             loaded = self.model.tok_encode_batch(batch_query_docs) #dict object, with key input_ids (padded) and attention_mask
-#             testenc = loaded["input_ids"].to(self.model.device)
-#             # test_attn_mask = loaded["attention_mask"].to(self.model.device)
+        for i in range(0, len(sentences), batch_size):
+            batch_sentences = sentences[i:i + batch_size]
+            batch_query_docs = [f"{q}\n\n{doc}" for q, doc in batch_sentences]
+            loaded = self.model.tok_encode_batch(batch_query_docs) #dict object, with key input_ids (padded) and attention_mask
+            testenc = loaded["input_ids"].to(self.model.device)
+            # test_attn_mask = loaded["attention_mask"].to(self.model.device)
 
-#             nsamples = testenc.numel() // self.model.seqlen
-#             if nsamples == 0:
-#                 nsamples += 1
+            nsamples = testenc.numel() // self.model.seqlen
+            if nsamples == 0:
+                nsamples += 1
 
-#             use_cache = self.model.model.config.use_cache
-#             self.model.model.config.use_cache = False
-#             self.model.model.eval()
-#             nlls = []
-#             for j in tqdm(range(nsamples)):
-#                 batch = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)].to(self.model.device)
+            use_cache = self.model.model.config.use_cache
+            self.model.model.config.use_cache = False
+            self.model.model.eval()
+            nlls = []
+            for j in tqdm(range(nsamples)):
+                batch = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)].to(self.model.device)
 
-#                 with torch.no_grad():
-#                     if "opt" in self.args.net.lower():
-#                         outputs = self.model.model.model.decoder(batch)
-#                     elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
-#                         outputs = self.model.model.model(batch)
-#                     elif "falcon" in self.args.model:
-#                         outputs = self.model.model.transformer(batch)
+                with torch.no_grad():
+                    if "opt" in self.args.net.lower():
+                        outputs = self.model.model.model.decoder(batch)
+                    elif "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
+                        outputs = self.model.model.model(batch)
+                    elif "falcon" in self.args.model:
+                        outputs = self.model.model.transformer(batch)
 
-#                 hidden_states = outputs[0]
-#                 logits = self.model.model.lm_head(hidden_states)
-#                 shift_logits = logits[:, :-1, :]
-#                 shift_labels = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)][
-#                     :, 1:
-#                 ].to(self.model.model.lm_head.weight.device)
-#                 loss_fct = nn.CrossEntropyLoss()
-#                 loss = loss_fct(
-#                     shift_logits.view(-1, shift_logits.size(-1)),
-#                     shift_labels.view(-1),
-#                 )
-#                 neg_log_likelihood = loss.float() * self.model.seqlen
-#                 nlls.append(neg_log_likelihood)
-#                 if j == self.args.limit:
-#                     break
+                hidden_states = outputs[0]
+                logits = self.model.model.lm_head(hidden_states)
+                shift_logits = logits[:, :-1, :]
+                shift_labels = testenc[:, (j * self.model.seqlen) : ((j + 1) * self.model.seqlen)][
+                    :, 1:
+                ].to(self.model.model.lm_head.weight.device)
+                loss_fct = nn.CrossEntropyLoss()
+                loss = loss_fct(
+                    shift_logits.view(-1, shift_logits.size(-1)),
+                    shift_labels.view(-1),
+                )
+                neg_log_likelihood = loss.float() * self.model.seqlen
+                nlls.append(neg_log_likelihood)
+                if j == self.args.limit:
+                    break
     
-#             ppl = -torch.exp(torch.stack(nlls).sum() / (nsamples * self.model.seqlen)) # - because it picks the highest scores
-#             self.model.model.config.use_cache = use_cache
-#             ppls.append(ppl.item())
-#         return ppls
+            ppl = -torch.exp(torch.stack(nlls).sum() / (nsamples * self.model.seqlen)) # - because it picks the highest scores
+            self.model.model.config.use_cache = use_cache
+            ppls.append(ppl.item())
+        return ppls
 
 
 class QLlamaUPRModel:
@@ -338,6 +388,7 @@ class QLlamaUPRModel:
         self.args = args
         self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
         self.kwargs = kwargs
+        self.epsilon = 0.001
     
     # Write your own score function, which takes in query-document text pairs and returns the similarity scores
     def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwargs) -> List[float]:
@@ -364,35 +415,35 @@ class QLlamaUPRModel:
             # mask context out for loss calc
             labels = combi_input_ids.clone()
             labels[:, :context_input_ids.shape[1]] = -100 
-            labels = labels
-
-            # if combi_input_ids.shape[1] > self.model.seqlen:
-            #     combi_input_ids = combi_input_ids[:, -self.model.seqlen:] 
-            #     combi_attn_mask = combi_attn_mask[:, -self.model.seqlen:] 
-            #     labels = labels[:, -self.model.seqlen:]
 
             self.model.model.config.use_cache = False
             self.model.model.eval()
-            self.model.model = self.model.model.to(self.model.device)
 
             with torch.no_grad():
-                outputs = self.model.model(input_ids=combi_input_ids, attention_mask=combi_attn_mask, labels=labels)
-                # logits = self.model.model(input_ids=combi_input_ids, attention_mask=combi_attn_mask, labels=labels).logits
-
-            # log_softmax = torch.nn.functional.log_softmax(logits, dim=-1)
-            # nll = -log_softmax.gather(2, tar_input_ids.unsqueeze(2)).squeeze(2)
-            # nlls.append(torch.sum(nll, dim=1).item())
-            # print(log_softmax, nll)
+                if "llama" in self.args.net.lower() or "mixtral" in self.args.net.lower():
+                    outputs = self.model.model(input_ids=combi_input_ids, attention_mask=combi_attn_mask, labels=labels)
+                else:
+                    raise NotImplementedError
             loss = outputs.loss
             nlls.append(-loss.item())
-        # print("SCORES: ", nlls)
-        return nlls
+            # nlls.append(loss.item())
 
+        # nlls_array = np.array(nlls)
+        # max_nll = np.max(nlls_array)
+        # nlls_array = max_nll - nlls_array + self.epsilon
+        # return nlls_array.tolist()
+        return nlls
 
 def main():
     import argparse
-
     parser = argparse.ArgumentParser()
+    # Add your existing arguments from benchmark_beir.py
+    # parser.add_argument("--model", type=str, help="model name or path")
+    # parser.add_argument("--cache_dir", default="./cache", type=str)
+    # parser.add_argument("--output_dir", default="../log/", type=str)
+    # parser.add_argument("--save_dir", default=None, type=str)
+    # parser.add_argument("--wbits", type=int, default=4)
+    # parser.add_argument("--abits", type=int, default=16)
     parser.add_argument("--model", type=str, help="model name of model path")
     parser.add_argument("--cache_dir", default="./cache", type=str, help="cache dir of dataset, leading to faster debug")
     parser.add_argument("--output_dir", default="../log/", type=str, help="direction of logging file")
@@ -404,7 +455,7 @@ def main():
         help="Where to extract calibration data from.",
     )
     parser.add_argument("--nsamples", type=int, default=128, help="Number of calibration data samples.")
-    parser.add_argument("--batch_size", type=int, default=1, help="batch size.")
+    # parser.add_argument("--batch_size", type=int, default=1, help="batch size.")
     parser.add_argument("--seed", type=int, default=2, help="Seed for sampling the calibration data.")
     parser.add_argument("--tasks", default="")
     parser.add_argument("--eval_ppl", action="store_true")
@@ -442,126 +493,107 @@ def main():
     parser.add_argument("--tau_range", type=float, default=0.1)
     parser.add_argument("--tau_n", type=int, default=100)
     parser.add_argument("--blocksize2", type=int, default=256)
+    # Add other arguments from your original implementation
 
-    # parser.add_argument("--ce", action="store_true", help="Rerank with crossencoder")
+    parser.add_argument("--ce", action="store_true", help="Rerank with crossencoder")
     parser.add_argument("--be", action="store_true", help="Rerank with biencoder")
     parser.add_argument("--upr", action="store_true", help="Rerank with UPR crossencoder")
-    parser.add_argument("--beirdata", type=str, default="scifact", choices=["scifact", "msmarco", "trec-covid", "nfcorpus", "nq", "hotpotqa", "fiqa", "arguana", "webis-touche2020", "cqadupstack", "quora", "dbpedia-entity", "scidocs", "fever", "climate-fever"])
-    parser.add_argument("--header", type=str, default="Passage:", help="Text preprended to document for UPR prompt")
-    parser.add_argument("--instruction", type=str, default="Please write a question based on this passage.", help="Instruction text appended to document for UPR prompt")
-    parser.add_argument("--topk", type=int, default=100, help="# documents to rerank")
-    parser.add_argument("--seqlen", type=int, default=2048, help="Sequence length of model")
+    parser.add_argument("--topk", type=int, default=100, help="Top-k documents to rerank")
+    parser.add_argument("--header", type=str, default="", help="Header for UPR model")
+    parser.add_argument("--instruction", type=str, default="", help="Instruction for UPR model")
+    
+    # # Add STS specific arguments
+    parser.add_argument("--sts_tasks", type=str, nargs="+", 
+                        default=["STS12", "STS13", "STS14", "STS15", "STS16", "STSBenchmark", "SICK-R"],
+                        help="STS tasks to evaluate on")
 
+    # # Remove STS specific arguments
+    # parser.remove_argument("--sts_tasks")
+    
+    # Add retrieval specific arguments
+    # parser.add_argument("--retrieval_tasks", type=str, nargs="+", 
+    #                 default=["MSMARCO", "TREC-COVID", "FiQA-2018", "SciFact"],
+    #                 help="Retrieval tasks to evaluate on")
+    parser.add_argument("--languages", type=str, nargs="+",
+                    default=["eng"],
+                    help="Languages to evaluate on")
+    parser.add_argument("--batch_size", type=int, default=32)
+    # parser.add_argument("--max_corpus_size", type=int, default=None,
+    #                help="Maximum number of documents to use from corpus")
+    # parser.add_argument("--max_queries", type=int, default=None,
+    #                help="Maximum number of queries to evaluate")
+
+    
     args = parser.parse_args()
     set_seed(args.seed)
 
-    #### Just some code to print debug information to stdout
-    logging.basicConfig(format='%(asctime)s - %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S',
-                        level=logging.INFO,
-                        handlers=[LoggingHandler()])
-    #### /print debug information to stdout
+    # Load and prepare model
+    model, logger = load_model(args)
+    eval_model = STSEvalModel(model)
 
-    #### Download scifact.zip dataset and unzip the dataset
-    dataset = args.beirdata
-    url = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{}.zip".format(dataset)
-    out_dir = os.path.join(pathlib.Path(__file__).parent.absolute(), "datasets")
-    data_path = util.download_and_unzip(url, out_dir)
+    # Initialize MTEB evaluator with specified STS tasks
+    logger.info(f"Evaluating on tasks: {args.sts_tasks}")
+    evaluation = MTEB(tasks=args.sts_tasks)
 
-    #### Provide the data path where scifact has been downloaded and unzipped to the data loader
-    # data folder would contain these files: 
-    # (1) scifact/corpus.jsonl  (format: jsonlines)
-    # (2) scifact/queries.jsonl (format: jsonlines)
-    # (3) scifact/qrels/test.tsv (format: tsv ("\t"))
-
-    corpus, queries, qrels = GenericDataLoader(data_path).load(split="test")
-
-    #### Lexical Retrieval using Bm25 (Elasticsearch) ####
-    #### Provide a hostname (localhost) to connect to ES instance
-    #### Define a new index name or use an already existing one.
-    #### We use default ES settings for retrieval
-    #### https://www.elastic.co/
-
-    hostname = "localhost" #localhost
-    index_name = dataset # scifact
-
-    #### Intialize #### 
-    # (1) True - Delete existing index and re-index all documents from scratch 
-    # (2) False - Load existing index
-    initialize = True # False
-
-    #### Sharding ####
-    # (1) For datasets with small corpus (datasets ~ < 5k docs) => limit shards = 1 
-    # SciFact is a relatively small dataset! (limit shards to 1)
-    # number_of_shards = 1
-    number_of_shards = 50
-    model = BM25(index_name=index_name, hostname=hostname, initialize=initialize, number_of_shards=number_of_shards)
-
-    # (2) For datasets with big corpus ==> keep default configuration
-    retriever = EvaluateRetrieval(model)
-
-    #### Retrieve dense results (format of results is identical to qrels)
-    results = retriever.retrieve(corpus, queries)
-
-    ################################################
-    #### (2) RERANK Top-100 docs using Cross-Encoder
-    ################################################
-    #### Reranking using Cross-Encoder models #####
-    # if args.ce:
-    #     reranker = Rerank(QLlamaCEModel(args), batch_size=args.batch_size)
-    #     # Rerank top-100 results using the reranker provided
-    #     rerank_results = reranker.rerank(corpus, queries, results, top_k=args.topk)
-    #     #### Evaluate your retrieval using NDCG@k, MAP@K ...
-    #     ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
-    #     logging.info(f"CE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
+    # Initialize MTEB evaluator with specified retrieval tasks
+    # if args.retrieval_tasks:
+    #     tasks = args.retrieval_tasks
+    # else:
+    #     tasks = mteb.get_tasks(task_types=["Retrieval"], languages=args.languages)
     
-    if args.upr:
-        reranker = Rerank(QLlamaUPRModel(args, header=args.header, instruction=args.instruction), batch_size=args.batch_size)
-        # Rerank top-100 results using the reranker provided
-        rerank_results = reranker.rerank(corpus, queries, results, top_k=args.topk)
-        #### Evaluate your retrieval using NDCG@k, MAP@K ...
-        ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
-        logging.info(f"UPR metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
+    # logger.info(f"Evaluating on tasks: {tasks}")
+    # evaluation = MTEB(tasks=tasks)
+    # results = evaluation.run(model, output_folder=args.output_dir)
+    
+    # Run evaluation
+    results = evaluation.run(eval_model, output_folder=args.output_dir)
+    
+    # Log results
+    logger.info("=== Evaluation Results ===")
+    if isinstance(results, dict):
+        # Handle dictionary results
+        for task, metrics in results.items():
+            logger.info(f"\nTask: {task}")
+            for metric, value in metrics.items():
+                logger.info(f"{metric}: {value}")
+    else:
+        # Handle list results
+        for result in results:
+            if isinstance(result, dict):
+                logger.info("\nTask Results:")
+                for metric, value in result.items():
+                    logger.info(f"{metric}: {value}")
+            else:
+                logger.info(f"\nResult: {result}")
 
-    ## Everything for the bi one
-    if args.be:
-        #### Retrieve dense results (format of results is identical to qrels)
-        dense_model = DRES(QLlamaDEModel(args), batch_size=args.batch_size)
-        dense_retriever = EvaluateRetrieval(dense_model, score_function="cos_sim", k_values=[1,3,5,10,100])
-        rerank_results = dense_retriever.rerank(corpus, queries, results, top_k=args.topk)
-        #### Evaluate your retrieval using NDCG@k, MAP@K ...
-        ndcg, _map, recall, precision = dense_retriever.evaluate(qrels, rerank_results, retriever.k_values)
-        logging.info(f"BE metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
+    # Additional evaluations (UPR, BE, CE)
+    # if args.upr or args.be or args.ce:
+    #     for task in tasks:
+    #         corpus, queries, qrels = task.load_data()
+            
+    #         # BM25 baseline (if needed)
+    #         bm25 = BM25(index_name=task.name)
+    #         retriever = EvaluateRetrieval(bm25, k_values=[1, 3, 5, 10, 100])
+    #         results = retriever.retrieve(corpus, queries)
 
+    #         if args.ce:
+    #             reranker = Rerank(QLlamaCEModel(args), batch_size=args.batch_size)
+    #             rerank_results = reranker.rerank(corpus, queries, results, top_k=args.topk)
+    #             ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values)
+    #             logger.info(f"CE metrics for {task.name}. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
+            
+    #         if args.upr:
+    #             reranker = Rerank(QLlamaUPRModel(args, header=args.header, instruction=args.instruction), batch_size=args.batch_size)
+    #             rerank_results = reranker.rerank(corpus, queries, results, top_k=args.topk)
+    #             ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values)
+    #             logger.info(f"UPR metrics for {task.name}. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
 
-
-    # from beir.reranking.models import CrossEncoder
-    # ### Evaluate your retrieval using NDCG@k, MAP@K -> this below is without reranking so essentially the bm25 baseline
-    # # logging.info("Retriever evaluation for k in: {}".format(retriever.k_values))
-    # cross_encoder_model = CrossEncoder('cross-encoder/ms-marco-electra-base')
-
-    # #### Or use MiniLM, TinyBERT etc. CE models (https://www.sbert.net/docs/pretrained-models/ce-msmarco.html)
-    # # cross_encoder_model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-    # # cross_encoder_model = CrossEncoder('cross-encoder/ms-marco-TinyBERT-L-6')
-
-    # reranker = Rerank(cross_encoder_model, batch_size=args.batch_size)
-
-    # # Rerank top-100 results using the reranker provided
-    # rerank_results = reranker.rerank(corpus, queries, results, top_k=args.topk)
-
-    # #### Evaluate your retrieval using NDCG@k, MAP@K ...
-    # ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values)
-    # # print("DEFAULT CE RERANK RESULTS: ", rerank_results)
-    # logging.info(f"DEFAULT CE RERANK RESULTS. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
-
-
-
-
-    ndcg, _map, recall, precision = retriever.evaluate(qrels, results, retriever.k_values)
-    # print("BM25 RANK RESULTS: ", results)
-    logging.info(f"BM25 metrics (baseline). NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
-
+    #         if args.be:
+    #             dense_model = DRES(QLlamaDEModel(args), batch_size=args.batch_size)
+    #             dense_retriever = EvaluateRetrieval(dense_model, score_function="cos_sim", k_values=[1,3,5,10,100])
+    #             rerank_results = dense_retriever.rerank(corpus, queries, results, top_k=args.topk)
+    #             ndcg, _map, recall, precision = dense_retriever.evaluate(qrels, rerank_results, retriever.k_values)
+    #             logger.info(f"BE metrics for {task.name}. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
 
 if __name__ == "__main__":
-    print(sys.argv)
-    main()
+    main() 
