@@ -25,7 +25,7 @@ class LMClass(BaseLM):
             args.model, attn_implementation=args.attn_implementation
         )
 
-        if args.quantization_method.lower() == "gptq":
+        if args.quant_method.lower() == "gptq":
             def noop(*args, **kwargs):
                 pass
 
@@ -43,7 +43,7 @@ class LMClass(BaseLM):
         self.model = AutoModelForCausalLM.from_pretrained(
             args.model, config=config, device_map='cpu', torch_dtype=torch.float16)
 
-        if args.quantization_method == "gptq":
+        if args.quant_method.lower() == "gptq":
             torch.set_default_dtype(torch.float)
 
         self.seqlen = self.model.config.max_position_embeddings
