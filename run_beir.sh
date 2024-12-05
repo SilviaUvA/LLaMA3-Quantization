@@ -94,11 +94,16 @@ trap cleanup EXIT
 # python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-2bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_2bits --wbits 2 --abits 2 --group_size 128 --upr --beirdata quora &&
 # python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/LLaMA38B-16bit-upr --upr --beirdata quora
 
+python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-4bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_4bits --wbits 4 --abits 4 --group_size 128 --upr --beirdata trec-covid &&
+python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-3bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_3bits --wbits 3 --abits 3 --group_size 128 --upr --beirdata trec-covid &&
+python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-2bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_2bits --wbits 2 --abits 2 --group_size 128 --upr --beirdata trec-covid &&
+python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/LLaMA38B-16bit-upr --upr --beirdata trec-covid
+
 #### HQQ & fiqa ####
 # python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-4bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_4bits --wbits 4 --abits 4 --group_size 128 --upr --beirdata fiqa &&
 # python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-3bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_3bits --wbits 3 --abits 3 --group_size 128 --upr --beirdata fiqa &&
-python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-2bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_2bits --wbits 2 --abits 2 --group_size 128 --upr --beirdata fiqa &&
-python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/LLaMA38B-16bit-upr --upr --beirdata fiqa
+# python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-2bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_2bits --wbits 2 --abits 2 --group_size 128 --upr --beirdata fiqa &&
+# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/LLaMA38B-16bit-upr --upr --beirdata fiqa
 
 #### HQQ & webis-touche2020 ####
 # python benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-4bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_4bits --wbits 4 --abits 4 --group_size 128 --upr --beirdata webis-touche2020 &&
