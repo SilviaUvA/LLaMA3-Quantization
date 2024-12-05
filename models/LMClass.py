@@ -1,7 +1,7 @@
 import transformers
 import torch
 from .models_utils import BaseLM, find_layers
-from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, modeling_utils
 import torch.nn.functional as F
 from torch import nn
 import torch
@@ -25,11 +25,26 @@ class LMClass(BaseLM):
             args.model, attn_implementation=args.attn_implementation
         )
 
+        if args.quantization_method.lower() == "gptq":
+            def noop(*args, **kwargs):
+                pass
+
+            torch.nn.init.kaiming_uniform_ = noop
+            torch.nn.init.uniform_ = noop
+            torch.nn.init.normal_ = noop
+
+            torch.set_default_dtype(torch.half)
+            modeling_utils._init_weights = False
+            torch.set_default_dtype(torch.half)
+
         self.tokenizer = AutoTokenizer.from_pretrained(
             args.model, use_fast=False, legacy=False)
 
         self.model = AutoModelForCausalLM.from_pretrained(
             args.model, config=config, device_map='cpu', torch_dtype=torch.float16)
+
+        if args.quantization_method == "gptq":
+            torch.set_default_dtype(torch.float)
 
         self.seqlen = self.model.config.max_position_embeddings
         self.model.eval()
