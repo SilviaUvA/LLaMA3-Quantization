@@ -25,24 +25,11 @@ class LMClass(BaseLM):
             args.model, attn_implementation=args.attn_implementation
         )
 
-        def skip(*args, **kwargs):
-            pass
-
-        torch.nn.init.kaiming_uniform_ = skip
-        torch.nn.init.uniform_ = skip
-        torch.nn.init.normal_ = skip
-
-        torch.set_default_dtype(torch.half)
-        modeling_utils._init_weights = False
-        torch.set_default_dtype(torch.half)
-
         self.tokenizer = AutoTokenizer.from_pretrained(
             args.model, use_fast=False, legacy=False)
 
         self.model = AutoModelForCausalLM.from_pretrained(
-            args.model, config=config, device_map='cpu', torch_dtype=torch.float16)
-
-        torch.set_default_dtype(torch.float)
+            args.model, config=config, device_map='cpu', torch_dtype=config.torch_dtype)
 
         self.seqlen = self.model.config.max_position_embeddings
         self.model.eval()
