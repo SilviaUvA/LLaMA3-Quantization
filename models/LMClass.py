@@ -25,17 +25,16 @@ class LMClass(BaseLM):
             args.model, attn_implementation=args.attn_implementation
         )
 
-        if args.quant_method.lower() == "gptq":
-            def noop(*args, **kwargs):
-                pass
+        def skip(*args, **kwargs):
+            pass
 
-            torch.nn.init.kaiming_uniform_ = noop
-            torch.nn.init.uniform_ = noop
-            torch.nn.init.normal_ = noop
+        torch.nn.init.kaiming_uniform_ = skip
+        torch.nn.init.uniform_ = skip
+        torch.nn.init.normal_ = skip
 
-            torch.set_default_dtype(torch.half)
-            modeling_utils._init_weights = False
-            torch.set_default_dtype(torch.half)
+        torch.set_default_dtype(torch.half)
+        modeling_utils._init_weights = False
+        torch.set_default_dtype(torch.half)
 
         self.tokenizer = AutoTokenizer.from_pretrained(
             args.model, use_fast=False, legacy=False)
@@ -43,8 +42,7 @@ class LMClass(BaseLM):
         self.model = AutoModelForCausalLM.from_pretrained(
             args.model, config=config, device_map='cpu', torch_dtype=torch.float16)
 
-        if args.quant_method.lower() == "gptq":
-            torch.set_default_dtype(torch.float)
+        torch.set_default_dtype(torch.float)
 
         self.seqlen = self.model.config.max_position_embeddings
         self.model.eval()
