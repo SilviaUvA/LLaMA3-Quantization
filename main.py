@@ -125,8 +125,7 @@ def evaluate(lm, args, logger):
             lm.model.eval()
             nlls = []
             for i in tqdm(range(nsamples)):
-                batch = testenc[:, (i * lm.seqlen)
-                                    : ((i + 1) * lm.seqlen)].to(lm.device)
+                batch = testenc[:, (i * lm.seqlen)                                : ((i + 1) * lm.seqlen)].to(lm.device)
 
                 if "opt" in args.net.lower():
                     outputs = lm.model.model.decoder(batch)
@@ -272,6 +271,10 @@ def main():
     parser.add_argument("--tau_range", type=float, default=0.1)
     parser.add_argument("--tau_n", type=int, default=100)
     parser.add_argument("--blocksize2", type=int, default=256)
+
+    # Currently only used for GPTQ
+    parser.add_argument("--pt_file", type=str, default=None,
+                        help="Path to a .pt checkpoint file")
 
     args = parser.parse_args()
     random.seed(args.seed)

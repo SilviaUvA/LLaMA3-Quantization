@@ -8,6 +8,14 @@ import torch
 from tqdm import tqdm
 import pdb
 
+try:
+    # Assumes symbolic link to GPTQ-for-LLaMa repo.
+    # Should be put inside the same directory as this file.
+    from .GPTQ_for_LLaMa.llama import load_quant
+except ModuleNotFoundError as e:
+    print("Error when loading GPTQ-for-LLaMa:", e)
+    pass
+
 
 class LMClass(BaseLM):
     def __init__(self, args):
@@ -28,8 +36,16 @@ class LMClass(BaseLM):
         self.tokenizer = AutoTokenizer.from_pretrained(
             args.model, use_fast=False, legacy=False)
 
-        self.model = AutoModelForCausalLM.from_pretrained(
-            args.model, config=config, device_map='cpu', torch_dtype=config.torch_dtype)
+        self.model = None
+
+        if "gptq" in args.quant_method.lower():
+            # Load model using GPTQ-for-LLaMa repo
+            self.model = load_quant(args.model, args.pt_file, args.wbits,
+                                    groupsize=args.group_size)
+
+        if self.model is None:
+            self.model = AutoModelForCausalLM.from_pretrained(
+                args.model, config=config, device_map='cpu', torch_dtype=config.torch_dtype)
 
         self.seqlen = self.model.config.max_position_embeddings
         self.model.eval()
