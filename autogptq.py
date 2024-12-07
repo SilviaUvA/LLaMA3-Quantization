@@ -30,11 +30,6 @@ def load_model(args) -> AutoGPTQForCausalLM:
     return model, tokenizer
 
 
-def quantize(model: AutoGPTQForCausalLM, args):
-    model.quantize()
-    model.save_quantized(args.model, use_safetensors=True)
-
-
 if __name__ == "__main__":
     import argparse
 
@@ -45,7 +40,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", default="../log/",
                         type=str, help="direction of logging file")
     parser.add_argument("--save_dir", default=None, type=str,
-                        help="direction for saving fake quantization model")
+                        help="direction for saving quantization model")
     parser.add_argument("--calib_dataset", type=str, default="wikitext2",
                         choices=["wikitext2", "ptb", "c4", "mix", "pile"],
                         help="Where to extract calibration data from.",
@@ -63,3 +58,4 @@ if __name__ == "__main__":
 
     model, _ = load_model(args)
     model.quantize()
+    model.save_quantized(args.save_dir, use_safetensors=True)
