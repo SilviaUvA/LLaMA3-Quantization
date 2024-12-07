@@ -1,38 +1,24 @@
 """
-Adapted from examples/quantization/basic_usage_wikitext2.py
-from the AutoGPTQ repo.
+GPTQ quantization using AutoGPTQ implicitly in transformers module
 """
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, GPTQConfig
-# from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
-# from auto_gptq.utils import Perplexity
 
 from transformers import AutoTokenizer
 import numpy as np
 import torch
 import random
 
-# from datautils import get_loaders
-
 
 def load_model(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
-
-    # quantize_config = BaseQuantizeConfig(
-    #     bits=args.wbits,
-    #     group_size=args.group_size
-    # )
-
-    # model = AutoGPTQForCausalLM.from_pretrained(
-    #     args.model, quantize_config=quantize_config,
-    #     low_cpu_mem_usage=True)
 
     gptq_config = GPTQConfig(
         bits=args.wbits,
         group_size=args.group_size,
         tokenizer=tokenizer,
-        model_seqlen=2048,
-        dataset="wikitext2"
+        model_seqlen=args.seqlen,
+        dataset=args.calib_dataset
     )
 
     model = AutoModelForCausalLM.from_pretrained(
@@ -44,38 +30,6 @@ def load_model(args):
     )
 
     return model, tokenizer
-
-
-def get_wikitext2(nsamples, seed, seqlen, model):
-    from datasets import load_dataset
-
-    traindata = load_dataset("wikitext", "wikitext-2-raw-v1", split="train")
-    testdata = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
-
-    from transformers import AutoTokenizer
-
-    try:
-        tokenizer = AutoTokenizer.from_pretrained(model, use_fast=False)
-    except Exception:
-        tokenizer = AutoTokenizer.from_pretrained(model, use_fast=True)
-    trainenc = tokenizer("\n\n".join(traindata["text"]), return_tensors="pt")
-    testenc = tokenizer("\n\n".join(testdata["text"]), return_tensors="pt")
-
-    import random
-
-    random.seed(seed)
-    np.random.seed(0)
-    torch.random.manual_seed(0)
-
-    traindataset = []
-    for _ in range(nsamples):
-        i = random.randint(0, trainenc.input_ids.shape[1] - seqlen - 1)
-        j = i + seqlen
-        inp = trainenc.input_ids[:, i:j]
-        attention_mask = torch.ones_like(inp)
-        traindataset.append(
-            {"input_ids": inp, "attention_mask": attention_mask})
-    return traindataset, testenc
 
 
 if __name__ == "__main__":
@@ -95,6 +49,8 @@ if __name__ == "__main__":
                         )
     parser.add_argument("--nsamples", type=int, default=128,
                         help="Number of calibration data samples.")
+    parser.add_argument("--seqlen", type=int, default=2048,
+                        help="Sequence length of model.")
     parser.add_argument("--seed", type=int, default=2,
                         help="Seed for sampling the calibration data.")
     parser.add_argument("--wbits", type=int, default=4)
@@ -107,10 +63,5 @@ if __name__ == "__main__":
     torch.cuda.manual_seed(args.seed)
 
     model, tokenizer = load_model(args)
-
-    # traindataset, testenc = get_wikitext2(args.nsamples, args.seed,
-    #                                       model.seqlen, args.model)
-    # model.quantize(traindataset, use_triton=False)
-    # model.save_quantized(args.save_dir)
     model.save_pretrained(args.save_dir, use_safetensors=True)
     tokenizer.save_pretrained(args.save_dir)
