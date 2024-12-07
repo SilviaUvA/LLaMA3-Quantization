@@ -28,7 +28,7 @@ def load_model(args):
     #     low_cpu_mem_usage=True)
 
     gptq_config = GPTQConfig(
-        bits=args.wbit,
+        bits=args.wbits,
         group_size=args.group_size,
         tokenizer=tokenizer,
         model_seqlen=2048,

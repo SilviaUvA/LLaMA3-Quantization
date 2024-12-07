@@ -26,6 +26,7 @@ pip install protobuf==3.20.2
 pip install toml
 pip install triton==2.0.0
 
+pip install optimum==1.23.3
 
 # gptq_custom_4bit="../GPTQ-for-LLaMa/llama-3-8b-4bit-128g"
 # gptq_custom_2bit="../GPTQ-for-LLaMa/llama-3-8b-2bit-128g"
@@ -39,6 +40,6 @@ llama3_8b="meta-llama/Meta-Llama-3-8B"  # Llama 3 8B
 quantized_model=" ./quantized_models/autogptq-llama-3-8b-4bit-128g"
 
 # Evaluating GPTQ model from running code from GPTQ-for-LLaMa repo
-python3 autogptq.py --model ${llama3_8b} --save_dir ${quantized_model} --output_dir ./log/gptq --wbits 4 --group_size 128
+CUDA_VISIBLE_DEVICES=0 python3 autogptq.py --model ${llama3_8b} --save_dir ${quantized_model} --output_dir ./log/gptq --wbits 4 --group_size 128
 
 echo "Done for llama3-8B 4bit 128g"
