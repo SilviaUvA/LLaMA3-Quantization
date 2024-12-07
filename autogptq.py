@@ -4,28 +4,44 @@ from the AutoGPTQ repo.
 """
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, GPTQConfig
-from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
-from auto_gptq.utils import Perplexity
+# from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
+# from auto_gptq.utils import Perplexity
 
 from transformers import AutoTokenizer
 import numpy as np
 import torch
 import random
 
-from datautils import get_loaders
+# from datautils import get_loaders
 
 
-def load_model(args) -> tuple[AutoGPTQForCausalLM, AutoTokenizer]:
+def load_model(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
 
-    quantize_config = BaseQuantizeConfig(
-        bits=args.wbits,
+    # quantize_config = BaseQuantizeConfig(
+    #     bits=args.wbits,
+    #     group_size=args.group_size
+    # )
+
+    # model = AutoGPTQForCausalLM.from_pretrained(
+    #     args.model, quantize_config=quantize_config,
+    #     low_cpu_mem_usage=True)
+
+    gptq_config = GPTQConfig(
+        bits=args.wbit,
         group_size=args.group_size,
-        model_seqlen=args.seqlen
+        tokenizer=tokenizer,
+        model_seqlen=2048,
+        dataset="wikitext2"
     )
 
-    model = AutoGPTQForCausalLM.from_pretrained(
-        args.model, quantize_config=quantize_config)
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model,
+        quantization_config=gptq_config,
+        low_cpu_mem_usage=True,
+        torch_dtype="auto",
+        trust_remote_code=True
+    )
 
     return model, tokenizer
 
@@ -79,8 +95,6 @@ if __name__ == "__main__":
                         )
     parser.add_argument("--nsamples", type=int, default=128,
                         help="Number of calibration data samples.")
-    parser.add_argument("--seqlen", type=int, default=2048,
-                        help="Sequence length of model.")
     parser.add_argument("--seed", type=int, default=2,
                         help="Seed for sampling the calibration data.")
     parser.add_argument("--wbits", type=int, default=4)
@@ -94,8 +108,8 @@ if __name__ == "__main__":
 
     model, tokenizer = load_model(args)
 
-    traindataset, testenc = get_wikitext2(args.nsamples, args.seed,
-                                          model.seqlen, args.model)
-    model.quantize(traindataset, use_triton=False)
-    model.save_quantized(args.save_dir)
+    # traindataset, testenc = get_wikitext2(args.nsamples, args.seed,
+    #                                       model.seqlen, args.model)
+    # model.quantize(traindataset, use_triton=False)
+    # model.save_quantized(args.save_dir)
     model.save_quantized(args.save_dir, use_safetensors=True)
