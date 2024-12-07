@@ -112,4 +112,5 @@ if __name__ == "__main__":
     #                                       model.seqlen, args.model)
     # model.quantize(traindataset, use_triton=False)
     # model.save_quantized(args.save_dir)
-    model.save_quantized(args.save_dir, use_safetensors=True)
+    model.save_pretrained(args.save_dir, use_safetensors=True)
+    tokenizer.save_pretrained(args.save_dir)
