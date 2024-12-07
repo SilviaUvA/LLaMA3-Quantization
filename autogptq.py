@@ -3,8 +3,6 @@ GPTQ quantization using AutoGPTQ implicitly in transformers module
 """
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, GPTQConfig
-
-from transformers import AutoTokenizer
 import numpy as np
 import torch
 import random
