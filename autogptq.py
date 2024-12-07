@@ -1,4 +1,4 @@
-from transformers import AutoTokenizer, TextGenerationPipeline
+from transformers import AutoTokenizer, AutoModelForCausalLM, GPTQConfig
 from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 from auto_gptq.utils import Perplexity
 
@@ -7,6 +7,8 @@ import numpy as np
 import torch
 import random
 
+from datautils import get_loaders
+
 
 def load_model(args) -> AutoGPTQForCausalLM:
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
@@ -14,15 +16,14 @@ def load_model(args) -> AutoGPTQForCausalLM:
     quantize_config = BaseQuantizeConfig(
         bits=args.wbits,
         group_size=args.group_size,
-        tokenizer=tokenizer,
         dataset="wikitext2"
     )
 
-    # gptq_config = GPTQConfig(
-    #     bits=args.wbits,
-    #     dataset="wikitext2",
-    #     tokenizer=tokenizer
-    # )
+    gptq_config = GPTQConfig(
+        bits=args.wbits,
+        dataset="wikitext2",
+        tokenizer=tokenizer
+    )
 
     model = AutoGPTQForCausalLM.from_pretrained(
         args.model, quantization_config=quantize_config)
@@ -56,6 +57,14 @@ if __name__ == "__main__":
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
 
-    model, _ = load_model(args)
-    model.quantize()
+    model, tokenizer = load_model(args)
+
+    dataloader, testloader = get_loaders(
+        args.calib_dataset,
+        seed=args.seed,
+        model=args.model,
+        seqlen=model.seqlen,
+    )
+
+    model.quantize(testloader, use_triton=False)
     model.save_quantized(args.save_dir, use_safetensors=True)
