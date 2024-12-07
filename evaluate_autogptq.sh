@@ -39,6 +39,6 @@ llama3_8b="meta-llama/Meta-Llama-3-8B"  # Llama 3 8B
 quantized_model=" ./quantized_models/autogptq-llama-3-8b-4bit-128g"
 
 # Evaluating GPTQ model from running code from GPTQ-for-LLaMa repo
-python3 autogptq.py --model ${llama3_8b} --epochs 0 --save_dir ${quantized_model} --output_dir ./log/gptq --wbits 4 --group_size 128 --tasks ${tasks_commonsenseQA}
+python3 autogptq.py --model ${llama3_8b} --save_dir ${quantized_model} --output_dir ./log/gptq --wbits 4 --group_size 128
 
 echo "Done for llama3-8B 4bit 128g"

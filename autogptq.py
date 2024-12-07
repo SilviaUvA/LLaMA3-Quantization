@@ -1,5 +1,5 @@
 from transformers import AutoTokenizer, TextGenerationPipeline
-from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig, GPTQConfig
+from auto_gptq import AutoGPTQForCausalLM, BaseQuantizeConfig
 from auto_gptq.utils import Perplexity
 
 from transformers import AutoTokenizer
