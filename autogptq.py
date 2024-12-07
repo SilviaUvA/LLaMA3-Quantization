@@ -20,7 +20,8 @@ def load_model(args) -> tuple[AutoGPTQForCausalLM, AutoTokenizer]:
 
     quantize_config = BaseQuantizeConfig(
         bits=args.wbits,
-        group_size=args.group_size
+        group_size=args.group_size,
+        model_seqlen=args.seqlen
     )
 
     model = AutoGPTQForCausalLM.from_pretrained(
@@ -90,13 +91,6 @@ if __name__ == "__main__":
     torch.cuda.manual_seed(args.seed)
 
     model, tokenizer = load_model(args)
-
-    dataloader, testloader = get_loaders(
-        args.calib_dataset,
-        seed=args.seed,
-        model=args.model,
-        seqlen=model.seqlen,
-    )
 
     traindataset, testenc = get_wikitext2(args.nsamples, args.seed,
                                           model.seqlen, args.model)
