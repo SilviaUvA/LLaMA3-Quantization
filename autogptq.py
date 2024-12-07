@@ -76,6 +76,8 @@ if __name__ == "__main__":
                         choices=["wikitext2", "ptb", "c4", "mix", "pile"],
                         help="Where to extract calibration data from.",
                         )
+    parser.add_argument("--nsamples", type=int, default=128,
+                        help="Number of calibration data samples.")
     parser.add_argument("--seed", type=int, default=2,
                         help="Seed for sampling the calibration data.")
     parser.add_argument("--wbits", type=int, default=4)
