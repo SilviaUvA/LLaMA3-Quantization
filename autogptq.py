@@ -15,7 +15,7 @@ import random
 from datautils import get_loaders
 
 
-def load_model(args) -> AutoGPTQForCausalLM:
+def load_model(args) -> tuple[AutoGPTQForCausalLM, AutoTokenizer]:
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
 
     quantize_config = BaseQuantizeConfig(
@@ -24,7 +24,7 @@ def load_model(args) -> AutoGPTQForCausalLM:
     )
 
     model = AutoGPTQForCausalLM.from_pretrained(
-        args.model, quantization_config=quantize_config)
+        args.model, quantize_config=quantize_config)
 
     return model, tokenizer
 
