@@ -272,10 +272,6 @@ def main():
     parser.add_argument("--tau_n", type=int, default=100)
     parser.add_argument("--blocksize2", type=int, default=256)
 
-    # Currently only used for GPTQ
-    parser.add_argument("--pt_file", type=str, default=None,
-                        help="Path to a .pt checkpoint file")
-
     args = parser.parse_args()
     random.seed(args.seed)
     np.random.seed(args.seed)
