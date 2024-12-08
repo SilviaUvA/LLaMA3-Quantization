@@ -37,9 +37,10 @@ llama_model="meta-llama/${cur_llama}"
 
 wbits=4
 
-quantized_model=" ./quantized_models/autogptq-${cur_llama}-${wbits}bit-128g"
+model_name="autogptq-${cur_llama}-${wbits}bit-128g"
+quantized_model=" ./quantized_models/${model_name}"
 
 # Quantizing Llama model from running code using AutoGPTQ
-CUDA_VISIBLE_DEVICES=0 python3 autogptq.py --model ${llama_model} --save_dir ${quantized_model} --output_dir ./log/${quantized_model} --wbits ${wbits} --group_size 128
+CUDA_VISIBLE_DEVICES=0 python3 autogptq.py --model ${llama_model} --save_dir ${quantized_model} --output_dir ./log/${model_name} --wbits ${wbits} --group_size 128
 
 echo "Done for ${cur_llama} ${wbits}bit 128g"
