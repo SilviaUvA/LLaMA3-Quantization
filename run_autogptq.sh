@@ -28,13 +28,13 @@ pip install triton==2.0.0
 
 pip install optimum==1.23.3
 
-# pt_file="../GPTQ-for-LLaMa/tensors/llama-3-8b-4bit-128g/llama-3-8b-4bit-128g.pt"
-
 llama3_8b="meta-llama/Meta-Llama-3-8B"  # Llama 3 8B
 
-quantized_model=" ./quantized_models/autogptq-llama-3-8b-4bit-128g"
+wbits=4
+
+quantized_model=" ./quantized_models/autogptq-llama-3-8b-${wbits}bit-128g"
 
 # Quantizing Llama model from running code using AutoGPTQ
-CUDA_VISIBLE_DEVICES=0 python3 autogptq.py --model ${llama3_8b} --save_dir ${quantized_model} --output_dir ./log/gptq --wbits 4 --group_size 128
+CUDA_VISIBLE_DEVICES=0 python3 autogptq.py --model ${llama3_8b} --save_dir ${quantized_model} --output_dir ./log/${quantized_model} --wbits ${wbits} --group_size 128
 
-echo "Done for llama3-8B 4bit 128g"
+echo "Done for llama3-8B ${wbits}bit 128g"
