@@ -2,7 +2,7 @@ import transformers
 from transformers import T5Tokenizer, T5ForConditionalGeneration
 import torch
 from .models_utils import BaseLM, find_layers
-from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoConfig, AutoModelForCausalLM, LlamaForCausalLM, LlamaTokenizer, AutoModelForSeq2SeqLM
 import torch.nn.functional as F
 from torch import nn
 import torch
@@ -16,7 +16,8 @@ class LMClass(BaseLM):
         super().__init__()
 
         self.args = args
-        self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self._device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu")
         self.model_name = args.model
         self.batch_size_per_gpu = args.batch_size
 
