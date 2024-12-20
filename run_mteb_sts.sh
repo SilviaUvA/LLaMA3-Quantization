@@ -6,8 +6,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
 #SBATCH --time=24:00:00
-#SBATCH --output=mteb_sts_%A.out
-#SBATCH --error=mteb_sts_error_%A.out
+#SBATCH --output=mteb_stsV2_%A_hqq_2bit.out
+#SBATCH --error=mteb_stsV2_error_%A_hqq_2bit.out
 
 module purge
 module load 2022
@@ -33,14 +33,28 @@ STS_TASKS=(
 TASKS_STR=$(IFS=' ' ; echo "${STS_TASKS[*]}")
 
 # Run evaluation
+#baseline
+# python3 benchmark_mteb.py \
+#     --model meta-llama/Meta-Llama-3-8B \
+#     --quant_method None \
+#     --tau_range 0.1 \
+#     --tau_n 100 \
+#     --blocksize2 256 \
+#     --epochs 0 \
+#     --output_dir ./mteb_sts_results_baseline_V2 \
+#     --batch_size 32 \
+#     --sts_tasks $TASKS_STR \
+#     --languages eng
+
+# hqq-quantized-8b-3bit
 python3 benchmark_mteb.py \
-    --model meta-llama/Meta-Llama-3-8B \
-    --quant_method None \
+    --model quantized-llama-hqq-Meta-Llama-3-8B-2bit \
+    --quant_method hqq \
     --tau_range 0.1 \
     --tau_n 100 \
     --blocksize2 256 \
     --epochs 0 \
-    --output_dir ./mteb_sts_results \
+    --output_dir ./mteb_sts_results_hqq_2bit_V2 \
     --batch_size 32 \
     --sts_tasks $TASKS_STR \
     --languages eng
