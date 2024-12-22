@@ -15,5 +15,4 @@ module load Anaconda3/2022.05
 source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
 
-conda remove -n llama --all #TODO remove later when no more packages are necessary to be installed
 conda env create -f environment.yml
