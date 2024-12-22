@@ -13,7 +13,7 @@ Everything was run with scripts on SURF's Snellius. To install the environment, 
 ```shell
 sbatch install_env.sh
 ```
-This will create the `llama` environment, which takes roughly 30 minutes to an hour. 
+This will create the `llama` environment, which takes roughly 30 minutes to an hour.
 Now to login to Hugging Face, create a login token with [your Hugging Face account](https://huggingface.co/docs/hub/security-tokens) and paste the token into `huggingface_access_token.txt`.
 
 ## Creating the quantized models
@@ -27,44 +27,70 @@ sbatch run_quantize.sh
 After the script finished running, a folder named `quantized-llama-hqq-Meta-Llama-3-8B-xbit` should be visible, which contains the quantized model.
 
 ### GPTQ
-...
+To quantize an LLM using GPTQ run the following command:
+```shell
+sbatch run_autogptq.sh
+```
+
+In this file the hyperparameters, such as the number of bits (`wbits`) and the name of the original LLM, can be changed.
+
+This will save the models into the folder, given by the variable `save_dir`.
 
 ## Evaluating the quantized models
 After creating the models, they can be evaluated. Follow the corresponding instructions per section depending on what should be run.
 
 ### Reproducibility Evaluation
-...
+To evaluate the obtained quantized modelsl, run of the following commands:
+
+```shell
+# Evaluate unquantized LLaMA3 model
+sbatch evaluate_llama3.sh
+
+# Evaluate GPTQ
+sbatch evaluate_autogptq.sh
+
+# Evaluate AWQ with 4 bits
+sbatch evaluate_awq.sh
+
+# Evaluate SmoothQuant with 8 bits
+sbatch evaluate_smoothquant8.sh
+
+# Evaluate SmoothQuant with 4 bits
+sbatch evaluate_smoothquant4.sh
+```
+
+If successful, the output file specified by `{method}_eval_output_{task_id}.out` will contain the perplexity (PPL) values if `--eval_ppl` is given and CommonSenseQA values if `--tasks piqa,arc_easy,arc_challenge,hellaswag,winogrande` is given.
 
 ### Cross-encoder Evaluation
 This only used the original, full bit LLaMA3-8B model and the HQQ versions.
 Modify the commandline arguments in `run_beir.sh` depending on what model it should be run for. If trying to run the full model, change it to:
-```
+```shell
 model=${"meta-llama/Meta-Llama-3-8B"}
-quantmethod=${"None"} 
+quantmethod=${"None"}
 beirdata=${"trec-covid"} # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
 
 python3 benchmark_beir.py --model ${model} --quant_method ${quantmethod} --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/${model} --upr --beirdata ${beirdata}
 ```
 
 If trying to run on a quantized model with _x_ bits, instead change it to:
-```
+```shell
 nbits=${x} # change to number of bits, must align with model name
 model=${"./quantized-llama-hqq-Meta-Llama-3-8B-xbit"}
-quantmethod=${"hqq"} 
+quantmethod=${"hqq"}
 beirdata=${"trec-covid"} # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
 
 python3 benchmark_beir.py --model ${model} --quant_method ${quantmethod} --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/${model} --wbits ${nbits} --abits ${nbits} --group_size 128 --upr --beirdata ${beirdata}
 ```
 
 Then run the following:
-```
+```shell
 sbatch run_beir.sh
 ```
 
 ### Bi-encoder Evaluation
 This only used the original, full bit LLaMA3-8B model and the HQQ versions.
 Modify the commandline arguments in `run_mteb_sts.sh` depending on what model it should be run for. If trying to run the full model, change it to:
-```
+```shell
 python3 benchmark_mteb.py \
     --model meta-llama/Meta-Llama-3-8B \
     --quant_method None \
@@ -79,7 +105,7 @@ python3 benchmark_mteb.py \
 ```
 
 If trying to run on a quantized model with _x_ bits, instead change it to:
-```
+```shell
 python3 benchmark_mteb.py \
     --model quantized-llama-hqq-Meta-Llama-3-8B-xbit \ # modify bits here
     --quant_method hqq \
@@ -92,12 +118,12 @@ python3 benchmark_mteb.py \
     --sts_tasks $TASKS_STR \
     --languages eng
 ```
-Please ensure `--output_dir` does not exist already. 
+Please ensure `--output_dir` does not exist already.
 Then run the following:
-```
+```shell
 sbatch run_mteb_sts.sh
 ```
 
 
 ## Note
-We built on top of the already existing code. However, files that we did not need to modify are not edited to contain more comments or so. This was due to the challenges we ran into. The code created by us is documented, though. 
+We built on top of the already existing code. However, files that we did not need to modify are not edited to contain more comments or so. This was due to the challenges we ran into. The code created by us is documented, though.
