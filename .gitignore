@@ -8,3 +8,4 @@ huggingface_access_token.txt
 quantized*
 *.json
 *.txt
+/mteb_sts_results_*

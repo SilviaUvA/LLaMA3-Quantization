@@ -9,8 +9,13 @@
 #SBATCH --output=hqq_eval_output_%A.out
 #SBATCH --error=hqq_eval_error_%A.out
 
-module load 2024
+module purge
+module load 2022
+module load Anaconda3/2022.05
+module load cuDNN/8.6.0.163-CUDA-11.8.0
 
+source ~/.bashrc
+cd $HOME/LLaMA3-Quantization
 conda activate llama
 
 bits=4
