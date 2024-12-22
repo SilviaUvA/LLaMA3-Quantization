@@ -5,7 +5,7 @@ An Empirical Study [[PDF](https://arxiv.org/abs/2404.14047)]. It also extends th
 
 ## Setting Up
 To clone the fork, run:
-```
+```shell
 git clone https://github.com/SilviaUvA/LLaMA3-Quantization.git
 cd LLaMA3-Quantization
 ```
@@ -20,9 +20,9 @@ Now to login to Hugging Face via code, create a login token with [your Hugging F
 This section discusses how to obtain the HQQ and GPTQ models.
 
 ### HQQ
-First create the HQQ models. Within `run_quantize.sh` change `--bits x` to the required number of bits (default in the script is 2). Then run:
-```
-sbatch run_quantize.sh
+First create the HQQ models. Within `run_hqq.sh` change `--bits x` to the required number of bits (default in the script is 2). Then run:
+```shell
+sbatch run_hqq.sh
 ```
 After the script finished running, a folder named `quantized-llama-hqq-Meta-Llama-3-8B-xbit` should be visible, which contains the quantized model.
 
@@ -40,7 +40,7 @@ This will save the models into the folder, given by the variable `save_dir`.
 After creating the models, they can be evaluated. Follow the corresponding instructions per section depending on what should be run.
 
 ### Reproducibility Evaluation
-To evaluate the obtained quantized models, run the following commands:
+To evaluate the obtained quantized models, run the corresponding commands:
 
 ```shell
 # Evaluate unquantized LLaMA3 model
@@ -48,6 +48,9 @@ sbatch evaluate_llama3.sh
 
 # Evaluate GPTQ
 sbatch evaluate_autogptq.sh
+
+# Evaluate HQQ
+sbatch evaluate_hqq.sh
 
 # Evaluate AWQ with 4 bits
 sbatch evaluate_awq.sh

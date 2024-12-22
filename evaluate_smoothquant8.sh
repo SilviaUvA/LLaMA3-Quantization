@@ -18,7 +18,7 @@ source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
 conda activate llama
 
-smoothquant8="LLaMA-3-8B-SmoothQuant-8bit-8bit" # SmoothQuant 8bit
+smoothquant8="LLaMA-3-8B-SmoothQuant-8bit-8bit"
 
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 

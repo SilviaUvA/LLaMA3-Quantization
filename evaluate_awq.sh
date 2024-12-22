@@ -18,7 +18,7 @@ source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
 conda activate llama
 
-awq="LLaMA-3-8B-AWQ-4bit-b128" # AWQ
+awq="LLaMA-3-8B-AWQ-4bit-b128"
 
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 
