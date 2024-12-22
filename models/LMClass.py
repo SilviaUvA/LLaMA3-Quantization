@@ -10,6 +10,7 @@ from tqdm import tqdm
 import pdb
 from hqq.models.hf.base import AutoHQQHFModel
 
+
 class LMClass(BaseLM):
     def __init__(self, args):
 
@@ -26,7 +27,8 @@ class LMClass(BaseLM):
             args.model, attn_implementation=args.attn_implementation
         )
 
-        self.tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False,legacy=False)
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            args.model, use_fast=False, legacy=False)
         if args.quant_method == "hqq":
             self.model = AutoHQQHFModel.from_quantized(args.model)
             self.seqlen = self.model.config.max_position_embeddings
@@ -36,7 +38,8 @@ class LMClass(BaseLM):
             self.tokenizer = T5Tokenizer.from_pretrained(args.model)
             self.seqlen = self.model.config.d_model
         else:
-            self.model = AutoModelForCausalLM.from_pretrained(args.model, config=config, device_map='cpu',torch_dtype=torch.float16)
+            self.model = AutoModelForCausalLM.from_pretrained(
+                args.model, config=config, device_map='cpu', torch_dtype=torch.float16)
             self.seqlen = self.model.config.max_position_embeddings
 
         self.model.eval()

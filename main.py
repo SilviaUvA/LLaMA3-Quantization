@@ -101,7 +101,7 @@ def evaluate(lm, args, logger):
 
     if args.eval_ppl:
         # for dataset in ["wikitext2", "ptb", "c4","ptb-new",'c4-new']:
-        for dataset in ["wikitext2", "c4"]:
+        for dataset in ["wikitext2", "c4", "ptb"]:
             cache_testloader = f'{args.cache_dir}/testloader_{args.model_family}_{dataset}_all.cache'
             if os.path.exists(cache_testloader):
                 testloader = torch.load(cache_testloader)
@@ -121,13 +121,12 @@ def evaluate(lm, args, logger):
 
             print("TESTENC SHAPE: ", testenc.shape)  # TODO
             nsamples = testenc.numel() // lm.seqlen
-            print("NSAMPLES: ", nsamples)
             use_cache = lm.model.config.use_cache
             lm.model.config.use_cache = False
             lm.model.eval()
             nlls = []
             for i in tqdm(range(nsamples)):
-                batch = testenc[:, (i * lm.seqlen) : ((i + 1) * lm.seqlen)].to(lm.device)
+                batch = testenc[:, (i * lm.seqlen): ((i + 1) * lm.seqlen)].to(lm.device)
                 if "opt" in args.net.lower():
                     outputs = lm.model.model.decoder(batch)
                 elif "llama" in args.net.lower() or "mixtral" in args.net.lower():
