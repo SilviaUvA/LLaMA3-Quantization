@@ -14,6 +14,13 @@ module load 2024
 conda activate llama
 
 bits=4
-hqq=quantized-llama-hqq-Meta-Llama-3-8B-${bits}bit
+
+llama2="Llama-2-7b-hf"
+llama3="Meta-Llama-3-8B"
+cur_llama=${llama3}
+
+hqq=quantized-llama-hqq-${cur_llama}-${bits}bit
 
 python main.py --model ${pwd}"./"${hqq} --quant_method hqq --eval_ppl --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/${hqq} --wbits ${bits} --abits ${bits} --tasks piqa,arc_easy,arc_challenge,hellaswag,winogrande
+
+echo "Done for ${cur_llama} ${bits}bit"
