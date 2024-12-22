@@ -18,11 +18,6 @@ source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
 conda activate llama
 
-pip uninstall transformers
-pip install transformers==4.37.2
-pip install protobuf==3.20.2
-
-
 smoothquant8="LLaMA-3-8B-SmoothQuant-8bit-8bit" # SmoothQuant 8bit
 
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"

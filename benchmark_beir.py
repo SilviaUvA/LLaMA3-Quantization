@@ -10,7 +10,6 @@ from beir.datasets.data_loader import GenericDataLoader
 from beir.retrieval.evaluation import EvaluateRetrieval
 from beir.retrieval.search.lexical import BM25Search as BM25
 from beir.reranking import Rerank
-from beir.retrieval.search.dense import DenseRetrievalExactSearch as DRES
 
 import random
 import numpy as np
@@ -69,6 +68,9 @@ net_choices = [
 
 
 def set_seed(seed):
+    """
+    Helper function that sets all seeds, just in case.
+    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -76,6 +78,10 @@ def set_seed(seed):
 
 
 def load_model(args):
+    """
+    Function that utilizes the original authors' code to load in the model.
+    In this manner, we can apply all of their models into this IR setting.
+    """
     # check
     if args.epochs > 0:
         assert args.lwc or args.let
@@ -201,15 +207,17 @@ def load_model(args):
 
 
 class QLlamaUPRModel:
-    def __init__(self, args, **kwargs):   
-        self.model, self.logger = load_model(args) # ---> HERE Load your custom model
+    def __init__(self, args, **kwargs):
+        """
+
+        """
+        self.model, self.logger = load_model(args)
         self.args = args
         self.model.tokenizer.pad_token =  self.model.tokenizer.eos_token
         self.kwargs = kwargs
     
-    # Write your own score function, which takes in query-document text pairs and returns the similarity scores
     def predict(self, sentences: List[Tuple[str,str]], batch_size: int, **kwargs) -> List[float]:
-        # return only the list of float scores
+        # prepare prompts
         separated = list(zip(*sentences))
         header = self.kwargs["header"]
         instruction = self.kwargs["instruction"]
@@ -217,15 +225,18 @@ class QLlamaUPRModel:
         queries = separated[0]
 
         nlls = []
+        # iter through docs in batches
         for i in range(0, len(sentences), batch_size):
             batch_cond_input = cond_input[i: i + batch_size]
             batch_queries = queries[i: i + batch_size]
 
+            # tokenize passage+instruction (context) and queries separately
             tok_contexts = self.model.tok_encode_batch(batch_cond_input) #dict object, with key input_ids (padded) and attention_mask
             context_input_ids, context_attn_mask = tok_contexts.input_ids.to(self.model.device), tok_contexts.attention_mask.to(self.model.device)
             tok_queries = self.model.tok_encode_batch(batch_queries)
             tar_input_ids, tar_attn_mask = tok_queries.input_ids.to(self.model.device), tok_queries.attention_mask.to(self.model.device)
 
+            # combine context and queries
             combi_input_ids = torch.cat([context_input_ids, tar_input_ids], dim=1)
             combi_attn_mask = torch.cat([context_attn_mask, tar_attn_mask], dim=1)
 
@@ -238,17 +249,21 @@ class QLlamaUPRModel:
             self.model.model.eval()
             self.model.model = self.model.model.to(self.model.device)
 
+            # forward pass
             with torch.no_grad():
                 outputs = self.model.model(input_ids=combi_input_ids, attention_mask=combi_attn_mask, labels=labels)
 
             loss = outputs.loss
+            # - because beir does maximization
             nlls.append(-loss.item())
+
         return nlls
 
 
 def main():
     import argparse
 
+    # command args to load model with original paper's code
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", type=str, help="model name of model path")
     parser.add_argument("--cache_dir", default="./cache", type=str, help="cache dir of dataset, leading to faster debug")
@@ -293,13 +308,13 @@ def main():
     parser.add_argument("--net", type=str, default=None, choices=net_choices)
     parser.add_argument("--act-scales", type=str, default=None)
     parser.add_argument("--act-shifts", type=str, default=None)
-
     parser.add_argument("--quant_method", type=str, default='irqlora')
     parser.add_argument("--peft", type=str, default='./')
     parser.add_argument("--tau_range", type=float, default=0.1)
     parser.add_argument("--tau_n", type=int, default=100)
     parser.add_argument("--blocksize2", type=int, default=256)
 
+    # beir specific command args
     parser.add_argument("--upr", action="store_true", help="Rerank with UPR crossencoder")
     parser.add_argument("--beirdata", type=str, default="scifact", choices=["scifact", "msmarco", "trec-covid", "nfcorpus", "nq", "hotpotqa", "fiqa", "arguana", "webis-touche2020", "cqadupstack", "quora", "dbpedia-entity", "scidocs", "fever", "climate-fever"])
     parser.add_argument("--header", type=str, default="Passage:", help="Text preprended to document for UPR prompt")
@@ -307,68 +322,43 @@ def main():
     parser.add_argument("--topk", type=int, default=100, help="# documents to rerank")
     parser.add_argument("--seqlen", type=int, default=2048, help="Sequence length of model")
 
+    # parse args and set seed just in case
     args = parser.parse_args()
     set_seed(args.seed)
 
-    #### Just some code to print debug information to stdout
+    # debug information to stdout
     logging.basicConfig(format='%(asctime)s - %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S',
                         level=logging.INFO,
                         handlers=[LoggingHandler()])
-    #### /print debug information to stdout
 
-    #### Download scifact.zip dataset and unzip the dataset
+    # download and unzip dataset
     dataset = args.beirdata
     url = "https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/{}.zip".format(dataset)
     out_dir = os.path.join(pathlib.Path(__file__).parent.absolute(), "datasets")
     data_path = util.download_and_unzip(url, out_dir)
-
-    #### Provide the data path where scifact has been downloaded and unzipped to the data loader
-    # data folder would contain these files: 
-    # (1) scifact/corpus.jsonl  (format: jsonlines)
-    # (2) scifact/queries.jsonl (format: jsonlines)
-    # (3) scifact/qrels/test.tsv (format: tsv ("\t"))
-
     corpus, queries, qrels = GenericDataLoader(data_path).load(split="test")
 
-    #### Lexical Retrieval using Bm25 (Elasticsearch) ####
-    #### Provide a hostname (localhost) to connect to ES instance
-    #### Define a new index name or use an already existing one.
-    #### We use default ES settings for retrieval
-    #### https://www.elastic.co/
-
-    hostname = "localhost" #localhost
-    index_name = dataset # scifact
-
-    #### Initialize #### 
-    # (1) True - Delete existing index and re-index all documents from scratch 
-    # (2) False - Load existing index
-    initialize = True # False
-
-    #### Sharding ####
-    # (1) For datasets with small corpus (datasets ~ < 5k docs) => limit shards = 1 
-    # number_of_shards = 1
+    # first-stage retrieval with BM25
+    hostname = "localhost" #server/host
+    index_name = dataset
+    initialize = True
     number_of_shards = 50
     model = BM25(index_name=index_name, hostname=hostname, initialize=initialize, number_of_shards=number_of_shards)
-
-    # (2) For datasets with big corpus ==> keep default configuration
     retriever = EvaluateRetrieval(model)
-
-    #### Retrieve dense results (format of results is identical to qrels)
     results = retriever.retrieve(corpus, queries)
 
-    ################################################
-    #### (2) RERANK Top-100 docs using Cross-Encoder
-    ################################################
-    #### Reranking using Cross-Encoder models #####
+    # second stage retrieval with UPR
     if args.upr:
         reranker = Rerank(QLlamaUPRModel(args, header=args.header, instruction=args.instruction), batch_size=args.batch_size)
-        # Rerank top-100 results using the reranker provided
+        # rerank top-100 results using the reranker provided
         rerank_results = reranker.rerank(corpus, queries, results, top_k=args.topk)
-        #### Evaluate your retrieval using NDCG@k, MAP@K ...
-        ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values) #this is the example file
+
+        # evaluation UPR
+        ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, rerank_results, retriever.k_values)
         logging.info(f"UPR metrics. NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
 
+    # evaluation BM25 vanilla baseline
     ndcg, _map, recall, precision = retriever.evaluate(qrels, results, retriever.k_values)
     logging.info(f"BM25 metrics (baseline). NDCG: {ndcg}, MAP: {_map}, RECALL: {recall}, PRECISION: {precision}")
 

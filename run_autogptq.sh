@@ -18,15 +18,6 @@ source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
 conda activate llama
 
-pip uninstall transformers
-pip install transformers==4.37.2
-pip install protobuf==3.20.2
-
-pip install toml
-pip install triton==2.0.0
-
-pip install optimum==1.23.3
-
 llama3_8b="Meta-Llama-3-8B"  # Llama 3 8B
 llama2_7b="Llama-2-7b-hf"  # Llama 2 7B
 
