@@ -20,9 +20,9 @@ Now to login to Hugging Face, create a login token with [your Hugging Face accou
 This section discusses how to obtain the HQQ and GPTQ models.
 
 ### HQQ
-First create the HQQ models. Within `run_quantize.sh` change `--bits x` to the required number of bits (default script is 2). Then run:
-```
-sbatch run_quantize.sh
+First create the HQQ models. Within `run_hqq.sh` change `--bits x` to the required number of bits (default script is 2). Then run:
+```shell
+sbatch run_hqq.sh
 ```
 After the script finished running, a folder named `quantized-llama-hqq-Meta-Llama-3-8B-xbit` should be visible, which contains the quantized model.
 
