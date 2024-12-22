@@ -2,11 +2,11 @@
 
 #SBATCH --partition=gpu
 #SBATCH --gpus=1
-#SBATCH --job-name=hhq_quantize8b_3
+#SBATCH --job-name=hqq_quantize8b_2
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
 #SBATCH --time=01:00:00
-#SBATCH --output=hhq_quantize8b_3.out
+#SBATCH --output=hqq_quantize8b_2.out
 
 module purge
 module load 2022
@@ -18,4 +18,4 @@ cd $HOME/LLaMA3-Quantization
 #conda init bash 
 conda activate llama
 
-python quantizehqq.py --model "meta-llama/Meta-Llama-3-8B" --bits 3 --group_size 128
+python quantizehqq.py --model "meta-llama/Meta-Llama-3-8B" --bits 2 --group_size 128
