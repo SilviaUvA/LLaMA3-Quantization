@@ -6,8 +6,8 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=18
 #SBATCH --time=24:00:00
-#SBATCH --output=mteb_stsV2_%A_hqq_2bit.out
-#SBATCH --error=mteb_stsV2_error_%A_hqq_2bit.out
+#SBATCH --output=run_mteb_sts_%A_hqq_2bit.out
+#SBATCH --error=run_mteb_sts_error_%A_hqq_2bit.out
 
 module purge
 module load 2022
