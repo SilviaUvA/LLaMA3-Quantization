@@ -16,12 +16,7 @@ module load cuDNN/8.6.0.163-CUDA-11.8.0
 
 source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
-
 conda activate llama
-
-pip uninstall transformers
-pip install transformers==4.37.0
-pip install protobuf==3.20.2
 
 llama3_8b="meta-llama/Meta-Llama-3-8B"  # Llama 3 8B
 llama3_70b="meta-llama/Meta-Llama-3-70B"  # Llama 3 70B
