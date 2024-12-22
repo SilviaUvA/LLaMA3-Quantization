@@ -17,7 +17,7 @@ To install the environment, run the following:
 ```shell
 sbatch install_env.sh
 ```
-This will create the `llama` environment, which takes roughly 30 minutes to install.
+This will create the `llama` environment, which takes roughly 15-30 minutes to install.
 Now to login to Hugging Face via code, create a login token with [your Hugging Face account](https://huggingface.co/docs/hub/security-tokens) and paste the token into `huggingface_access_token.txt`. Make sure to also request access to the [LLaMA3 model on Hugging Face](https://huggingface.co/meta-llama/Meta-Llama-3-8B).
 
 ## Creating the quantized models
