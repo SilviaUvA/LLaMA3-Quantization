@@ -40,7 +40,7 @@ This will save the models into the folder, given by the variable `save_dir`.
 After creating the models, they can be evaluated. Follow the corresponding instructions per section depending on what should be run.
 
 ### Reproducibility Evaluation
-To evaluate the obtained quantized modelsl, run of the following commands:
+To evaluate the obtained quantized models, run of the following commands:
 
 ```shell
 # Evaluate unquantized LLaMA3 model
