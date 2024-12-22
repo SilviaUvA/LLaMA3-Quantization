@@ -1,4 +1,4 @@
-# LLaMA3-Quantization For Information Retrieval
+# LLaMA3-Quantization for Information Retrieval
 
 This is the fork containing the code for the reproducibility study of How Good Are Low-bit Quantized LLAMA3 Models?
 An Empirical Study [[PDF](https://arxiv.org/abs/2404.14047)]. It also extends the original paper by expanding it to the Information Retrieval domain.
