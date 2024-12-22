@@ -16,46 +16,39 @@ sbatch install_env.sh
 This will create the `llama` environment, which takes roughly 30 minutes to an hour. 
 Now to login to Hugging Face, create a login token with [your Hugging Face account](https://huggingface.co/docs/hub/security-tokens) and paste the token into `huggingface_access_token.txt`.
 
-## Per Experiment Commands
-Depending on what experiments you want to run, follow the remaining instructions in the corresponding section.
+## Creating the quantized models
+This section discusses how to obtain the HQQ and GPTQ models.
 
-### GPTQ Experiments
+### HQQ
+First create the HQQ models. Within `run_quantize.sh` change `--bits x` to the required number of bits (default script is 2). Then run:
+```
+sbatch run_quantize.sh
+```
+After the script finished running, a folder named `quantized-llama-hqq-Meta-Llama-3-8B-xbit` should be visible.
+
+### GPTQ
 ...
 
-### HQQ Experiments
+## Evaluating the quantized models
+After creating the models, they can be evaluated. Follow the corresponding instructions per section.
+
+### Reproducibility Evaluation
 ...
 
-### Cross-encoder Experiments
-...
+### Cross-encoder Evaluation
+This only used the original, full bit LLaMA3-8B model and the HQQ versions.
+Run the following:
+```
+sbatch run_beir.sh
+```
 
-### Bi-encoder Experiments
-...
+### Bi-encoder Evaluation
+This only used the original, full bit LLaMA3-8B model and the HQQ versions.
+Run the following:
+```
+sbatch run_mteb_sts.sh
+```
+
 
 ## Note
 We built on top of the already existing code. However, files that we did not need to modify are not edited to contain more comments or so. This was due to the challenges we ran into. The code created by us is documented, though. 
-
-## Related Project
-
-[QUIP](https://github.com/Cornell-RelaxML/QuIP)
-
-[GPTQ: Accurate Post-training Compression for Generative Pretrained Transformers](https://github.com/IST-DASLab/gptq)
-
-[AutoGPTQ](https://github.com/PanQiWei/AutoGPTQ)
-
-[AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration](https://github.com/mit-han-lab/llm-awq)
-
-[RPTQ: Reorder-Based Post-Training Quantization for Large Language Models](https://github.com/hahnyuan/RPTQ4LLM)
-
-[OmniQuant: Omnidirectionally Calibrated Quantization for Large Language Models](https://github.com/OpenGVLab/OmniQuant)
-
-[PB-LLM: Partially Binarized Large Language Models](https://github.com/hahnyuan/PB-LLM)
-
-[BiLLM: Pushing the Limit of Post-Training Quantization for LLMs](https://github.com/Aaronhuang-778/BiLLM)
-
-[SmoothQuant: Accurate and Efficient Post-Training Quantization for Large Language Models](https://github.com/mit-han-lab/smoothquant)
-
-[QLoRA: Efficient Finetuning of Quantized LLMs](https://github.com/artidoro/qlora)
-
-[IR-QLoRA: Accurate LoRA-Finetuning Quantization of LLMs via Information Retention](https://github.com/htqin/IR-QLoRA)
-
-
