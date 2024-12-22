@@ -49,6 +49,9 @@ sbatch evaluate_llama3.sh
 # Evaluate GPTQ
 sbatch evaluate_autogptq.sh
 
+# Evaluate HQQ
+sbatch evaluate_hqq.sh
+
 # Evaluate AWQ with 4 bits
 sbatch evaluate_awq.sh
 
