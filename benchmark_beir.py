@@ -35,9 +35,11 @@ import pdb
 
 from huggingface_hub import login
 
+# read hugging face token
 with open("huggingface_access_token.txt") as f:
     access_token = f.readline().strip()
 
+# login with token
 login(token=access_token)
 
 torch.backends.cudnn.benchmark = True
@@ -209,7 +211,11 @@ def load_model(args):
 class QLlamaUPRModel:
     def __init__(self, args, **kwargs):
         """
+        Class for performing Unbiased Passage Ranking (UPR) using a (HQQ) quantized LLaMA3 model.
 
+        This class wraps a (HQQ) quantized LLaMA3 model and provides functionality to compute nll
+        scores for a list of query-document pairs. The model uses a specified header and instruction to 
+        construct prompts for the ranking task.
         """
         self.model, self.logger = load_model(args)
         self.args = args
