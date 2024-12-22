@@ -41,7 +41,7 @@ TASKS_STR=$(IFS=' ' ; echo "${STS_TASKS[*]}")
 #     --tau_n 100 \
 #     --blocksize2 256 \
 #     --epochs 0 \
-#     --output_dir ./mteb_sts_results_baseline_V2 \
+#     --output_dir ./mteb_sts_results_baseline \
 #     --batch_size 32 \
 #     --sts_tasks $TASKS_STR \
 #     --languages eng
@@ -54,7 +54,7 @@ python3 benchmark_mteb.py \
     --tau_n 100 \
     --blocksize2 256 \
     --epochs 0 \
-    --output_dir ./mteb_sts_results_hqq_2bit_V2 \
+    --output_dir ./mteb_sts_results_hqq_2bit \
     --batch_size 32 \
     --sts_tasks $TASKS_STR \
     --languages eng
