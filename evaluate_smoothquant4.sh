@@ -16,7 +16,6 @@ module load cuDNN/8.6.0.163-CUDA-11.8.0
 
 source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
-
 conda activate llama
 
 pip uninstall transformers

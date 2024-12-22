@@ -16,7 +16,6 @@ module load cuDNN/8.6.0.163-CUDA-11.8.0
 
 source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
-conda init bash 
 conda activate llama
 
 # installing Elasticsearch for BEIR
@@ -55,14 +54,14 @@ cleanup() {
 trap cleanup EXIT
 
 # To run on the full model on covid dataset
-model=${"meta-llama/Meta-Llama-3-8B"}
-quantmethod=${"None"} 
-beirdata=${"trec-covid"} # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
+model="meta-llama/Meta-Llama-3-8B"
+quantmethod="None" 
+beirdata="trec-covid" # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
 python3 benchmark_beir.py --model ${model} --quant_method ${quantmethod} --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/${model} --upr --beirdata ${beirdata}
 
 # To run on quantized model on covid dataset
-# nbits=${x} # change to number of bits, must align with model name
-# model=${"./quantized-llama-hqq-Meta-Llama-3-8B-xbit"}
-# quantmethod=${"hqq"} 
-# beirdata=${"trec-covid"} # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
+# nbits=x # change to number of bits, must align with model name
+# model="./quantized-llama-hqq-Meta-Llama-3-8B-xbit"
+# quantmethod="hqq"
+# beirdata="trec-covid" # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
 # python3 benchmark_beir.py --model ${model} --quant_method ${quantmethod} --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/${model} --wbits ${nbits} --abits ${nbits} --group_size 128 --upr --beirdata ${beirdata}

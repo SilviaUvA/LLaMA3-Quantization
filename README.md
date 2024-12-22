@@ -65,24 +65,24 @@ If successful, the output file specified by `{method}_eval_output_{task_id}.out`
 This only used the original, full bit LLaMA3-8B model and the HQQ versions.
 Modify the commandline arguments in `run_beir.sh` depending on what model it should be run for. If trying to run the full model, change it to:
 ```shell
-model=${"meta-llama/Meta-Llama-3-8B"}
-quantmethod=${"None"}
-beirdata=${"trec-covid"} # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
+model="meta-llama/Meta-Llama-3-8B"
+quantmethod="None"
+beirdata="trec-covid" # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
 
 python3 benchmark_beir.py --model ${model} --quant_method ${quantmethod} --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/${model} --upr --beirdata ${beirdata}
 ```
 
 If trying to run on a quantized model with _x_ bits, instead change it to:
 ```shell
-nbits=${x} # change to number of bits, must align with model name
-model=${"./quantized-llama-hqq-Meta-Llama-3-8B-xbit"}
-quantmethod=${"hqq"}
-beirdata=${"trec-covid"} # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
+nbits=x # change to number of bits, must align with model name
+model="./quantized-llama-hqq-Meta-Llama-3-8B-xbit"
+quantmethod="hqq"
+beirdata="trec-covid" # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
 
 python3 benchmark_beir.py --model ${model} --quant_method ${quantmethod} --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/${model} --wbits ${nbits} --abits ${nbits} --group_size 128 --upr --beirdata ${beirdata}
 ```
 
-Then run the following:
+Please make sure that `run_beir.sh` is not currently running already (via `squeue`, for instance). Then run the following:
 ```shell
 sbatch run_beir.sh
 ```
