@@ -18,4 +18,4 @@ cd $HOME/LLaMA3-Quantization
 #conda init bash 
 conda activate llama
 
-python quantizehhq.py --model "meta-llama/Meta-Llama-3-8B" --bits 2 --group_size 128
+python quantizehqq.py --model "meta-llama/Meta-Llama-3-8B" --bits 2 --group_size 128

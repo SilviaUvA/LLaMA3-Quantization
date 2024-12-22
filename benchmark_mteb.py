@@ -331,16 +331,12 @@ def main():
     parser.add_argument("--tau_range", type=float, default=0.1)
     parser.add_argument("--tau_n", type=int, default=100)
     parser.add_argument("--blocksize2", type=int, default=256)
-    # Add other arguments from your original implementation
-
-    parser.add_argument("--ce", action="store_true", help="Rerank with crossencoder")
-    parser.add_argument("--be", action="store_true", help="Rerank with biencoder")
     parser.add_argument("--upr", action="store_true", help="Rerank with UPR crossencoder")
     parser.add_argument("--topk", type=int, default=100, help="Top-k documents to rerank")
     parser.add_argument("--header", type=str, default="", help="Header for UPR model")
     parser.add_argument("--instruction", type=str, default="", help="Instruction for UPR model")
     
-    # # Add STS specific arguments
+    # Add STS specific arguments
     parser.add_argument("--sts_tasks", type=str, nargs="+", 
                         default=["STS12", "STS13", "STS14", "STS15", "STS16", "STSBenchmark", "SICK-R"],
                         help="STS tasks to evaluate on")

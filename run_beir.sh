@@ -16,7 +16,7 @@ module load cuDNN/8.6.0.163-CUDA-11.8.0
 
 source ~/.bashrc
 cd $HOME/LLaMA3-Quantization
-#conda init bash 
+conda init bash 
 conda activate llama
 
 # installing Elasticsearch for BEIR
@@ -54,60 +54,15 @@ cleanup() {
 # kill Elasticsearch server after finishing job just to be sure
 trap cleanup EXIT
 
-# run actual python file
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --peft Efficient-ML/LLaMA-3-8B-IR-QLoRA --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-irqlora --wbits 4 #--batch_size 128 
-# python3 benchmark_beir.py --model "Efficient-ML/LLaMA-3-8B-SmoothQuant-8bit-8bit" --quant_method gptq --epochs 0 --output_dir ./log/beir/LLaMA-3-8B-SmoothQuant-8bit-8bit --wbits 8 --abits 8 --ce --be
-# python3 benchmark_beir.py --model "Efficient-ML/LLaMA-3-8B-AWQ-4bit-b128" --quant_method gptq --epochs 1 --output_dir ./log/beir/LLaMA-3-8B-AWQ-4bit-b128-epoch1 --wbits 4 --group_size 128 --lwc --net "llama-7b" --be
-# python3 benchmark_beir.py --model "Efficient-ML/LLaMA-3-8B-AWQ-4bit-b128" --quant_method gptq --epochs 1 --output_dir ./log/beir/LLaMA-3-8B-AWQ-4bit-b128-epoch1 --wbits 4 --group_size 128 --lwc --net "llama-7b" --ce
-# python3 benchmark_beir.py --model "Efficient-ML/LLaMA-3-8B-AWQ-4bit-b128" --quant_method gptq --epochs 0 --output_dir ./log/beir/LLaMA-3-8B-AWQ-4bit-b128-epoch0 --wbits 4 --group_size 128 --ce --be
+# To run on the full model on covid dataset
+model=${"meta-llama/Meta-Llama-3-8B"}
+quantmethod=${"None"} 
+beirdata=${"trec-covid"} # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
+python3 benchmark_beir.py --model ${model} --quant_method ${quantmethod} --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/${model} --upr --beirdata ${beirdata}
 
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-irqlora --ce --be #--wbits 4 #--batch_size 128 
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-irqlora --ce #--wbits 4 #--batch_size 128 
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-upr --upr #--wbits 4 #--batch_size 128 
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/llama-3-8b-upr-hotpotqa --upr --beirdata hotpotqa #--wbits 4 #--batch_size 128 
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/test-batchsize1-uprdefaultbase --topk 10 --upr #--wbits 4 #--batch_size 128 
-
-
-
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B-Instruct --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/LLaMA38B-16bit-upr --topk 100 --upr
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/LLaMA38B-16bit-upr --topk 100 --upr 
-# python3 benchmark_beir.py --model bigscience/T0_3B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/T03B-16bit-upr --topk 100 --upr #--seqlen 512
-
-
-
-
-#### HQQ & scifact ####
-# python benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-4bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_4bits --wbits 4 --abits 4 --group_size 128 --upr 
-# python benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-3bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_3bits --wbits 3 --abits 3 --group_size 128 --upr 
-# python benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-2bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_2bits --wbits 2 --abits 2 --group_size 128 --upr
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/LLaMA38B-16bit-upr --upr 
-
-#### HQQ & climate-fever ####
-# python benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-4bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_4bits --wbits 4 --abits 4 --group_size 128 --upr --beirdata climate-fever &&
-# python benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-3bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_3bits --wbits 3 --abits 3 --group_size 128 --upr --beirdata climate-fever &&
-# python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-2bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --batch_size 1 --output_dir ./log/Meta-Llama-3-8B_2bits --wbits 2 --abits 2 --group_size 128 --upr --beirdata climate-fever &&
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --batch_size 1 --output_dir ./log/beir/LLaMA38B-16bit-upr --upr --beirdata climate-fever
-
-#### HQQ & quora #### #TODO change this dataset, takes more than 20 hours for one method... could do arguana, trec-covid or nfcorpus instead
-# python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-4bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_4bits --wbits 4 --abits 4 --group_size 128 --upr --beirdata quora &&
-# python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-3bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_3bits --wbits 3 --abits 3 --group_size 128 --upr --beirdata quora &&
-# python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-2bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_2bits --wbits 2 --abits 2 --group_size 128 --upr --beirdata quora &&
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/LLaMA38B-16bit-upr --upr --beirdata quora
-
-python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-4bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_4bits --wbits 4 --abits 4 --group_size 128 --upr --beirdata trec-covid &&
-python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-3bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_3bits --wbits 3 --abits 3 --group_size 128 --upr --beirdata trec-covid &&
-python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-2bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_2bits --wbits 2 --abits 2 --group_size 128 --upr --beirdata trec-covid &&
-python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/LLaMA38B-16bit-upr --upr --beirdata trec-covid
-
-#### HQQ & fiqa ####
-# python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-4bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_4bits --wbits 4 --abits 4 --group_size 128 --upr --beirdata fiqa &&
-# python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-3bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_3bits --wbits 3 --abits 3 --group_size 128 --upr --beirdata fiqa &&
-# python3 benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-2bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_2bits --wbits 2 --abits 2 --group_size 128 --upr --beirdata fiqa &&
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/LLaMA38B-16bit-upr --upr --beirdata fiqa
-
-#### HQQ & webis-touche2020 ####
-# python benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-4bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_4bits --wbits 4 --abits 4 --group_size 128 --upr --beirdata webis-touche2020 &&
-# python benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-3bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_3bits --wbits 3 --abits 3 --group_size 128 --upr --beirdata webis-touche2020 &&
-# python benchmark_beir.py --model ./quantized-llama-hqq-Meta-Llama-3-8B-2bit --quant_method hqq --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/Meta-Llama-3-8B_2bits --wbits 2 --abits 2 --group_size 128 --upr --beirdata webis-touche2020 &&
-# python3 benchmark_beir.py --model meta-llama/Meta-Llama-3-8B --quant_method None --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/beir/LLaMA38B-16bit-upr --upr --beirdata webis-touche2020
-
+# To run on quantized model on covid dataset
+# nbits=${x} # change to number of bits, must align with model name
+# model=${"./quantized-llama-hqq-Meta-Llama-3-8B-xbit"}
+# quantmethod=${"hqq"} 
+# beirdata=${"trec-covid"} # choose from: "trec-covid", "fiqa", "scifact", "climate-fever" and "webis-touche2020"
+# python3 benchmark_beir.py --model ${model} --quant_method ${quantmethod} --let --tau_range 0.1 --tau_n 100 --blocksize 256 --epochs 0 --output_dir ./log/${model} --wbits ${nbits} --abits ${nbits} --group_size 128 --upr --beirdata ${beirdata}
