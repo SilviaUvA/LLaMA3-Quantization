@@ -5,7 +5,7 @@ An Empirical Study [[PDF](https://arxiv.org/abs/2404.14047)]. It also extends th
 
 ## Setting Up
 To clone the fork, run:
-```
+```shell
 git clone https://github.com/SilviaUvA/LLaMA3-Quantization.git
 cd LLaMA3-Quantization
 ```

@@ -119,7 +119,6 @@ def evaluate(lm, args, logger):
             else:
                 testenc = testloader.input_ids
 
-            print("TESTENC SHAPE: ", testenc.shape)  # TODO
             nsamples = testenc.numel() // lm.seqlen
             use_cache = lm.model.config.use_cache
             lm.model.config.use_cache = False

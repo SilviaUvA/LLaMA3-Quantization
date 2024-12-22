@@ -24,7 +24,7 @@ pip install transformers==4.37.2
 pip install protobuf==3.20.2
 
 
-smoothquant8="LLaMA-3-8B-SmoothQuant-8bit-8bit" # SmoothQuant 8bit
+smoothquant8="LLaMA-3-8B-SmoothQuant-8bit-8bit"
 
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 

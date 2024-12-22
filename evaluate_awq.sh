@@ -24,7 +24,7 @@ pip install transformers==4.37.2
 pip install protobuf==3.20.2
 
 
-awq="LLaMA-3-8B-AWQ-4bit-b128" # AWQ
+awq="LLaMA-3-8B-AWQ-4bit-b128"
 
 tasks_commonsenseQA="piqa,arc_easy,arc_challenge,hellaswag,winogrande"
 
