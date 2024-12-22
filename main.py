@@ -119,6 +119,7 @@ def evaluate(lm, args, logger):
             else:
                 testenc = testloader.input_ids
 
+            print("TESTENC SHAPE: ", testenc.shape)  # TODO
             nsamples = testenc.numel() // lm.seqlen
             use_cache = lm.model.config.use_cache
             lm.model.config.use_cache = False
@@ -260,6 +261,12 @@ def main():
         help="attention implementation that the model works with",
     )
     parser.add_argument("--net", type=str, default=None, choices=net_choices)
+    parser.add_argument("--model_type", type=str,
+                        choices=["LlamaForCausalLM", "AutoModelForCausalLM"],
+                        default="AutoModelForCausalLM")
+    parser.add_argument("--tokenizer_class", type=str,
+                        choices=["LlamaTokenizer", "AutoTokenizer"],
+                        default="AutoTokenizer")
     parser.add_argument("--act-scales", type=str, default=None)
     parser.add_argument("--act-shifts", type=str, default=None)
 
