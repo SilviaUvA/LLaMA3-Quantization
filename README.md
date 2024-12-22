@@ -63,7 +63,37 @@ sbatch run_beir.sh
 
 ### Bi-encoder Evaluation
 This only used the original, full bit LLaMA3-8B model and the HQQ versions.
-Run the following:
+Modify the commandline arguments in `run_mteb_sts.sh` depending on what model it should be run for. If trying to run the full model, change it to:
+```
+python3 benchmark_mteb.py \
+    --model meta-llama/Meta-Llama-3-8B \
+    --quant_method None \
+    --tau_range 0.1 \
+    --tau_n 100 \
+    --blocksize2 256 \
+    --epochs 0 \
+    --output_dir ./mteb_sts_results_baseline \
+    --batch_size 32 \
+    --sts_tasks $TASKS_STR \
+    --languages eng
+```
+
+If trying to run on a quantized model with _x_ bits, instead change it to:
+```
+python3 benchmark_mteb.py \
+    --model quantized-llama-hqq-Meta-Llama-3-8B-xbit \ # modify bits here
+    --quant_method hqq \
+    --tau_range 0.1 \
+    --tau_n 100 \
+    --blocksize2 256 \
+    --epochs 0 \
+    --output_dir ./mteb_sts_results_hqq_xbit \ # modify bits here
+    --batch_size 32 \
+    --sts_tasks $TASKS_STR \
+    --languages eng
+```
+Please ensure `--output_dir` does not exist already. 
+Then run the following:
 ```
 sbatch run_mteb_sts.sh
 ```
